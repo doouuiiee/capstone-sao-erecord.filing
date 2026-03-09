@@ -15,7 +15,17 @@ const server = http.createServer(app);
 const PORT = process.env.PORT || 5000;
 
 // Database connection
-const { connectDB } = require('./config/database');
+const mongoose = require('mongoose');
+  const connectDB = async () => {
+    try {
+      const conn = await mongoose.connect(process.env.MONGODB_URI);
+      console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
+      return true;
+    } catch (error) {
+      console.error('❌ MongoDB connection failed:', error.message);
+      return false;
+    }
+  };
 
 // Socket.IO initialization
 const socketService = require('./services/socketService');
@@ -264,4 +274,5 @@ process.on('SIGTERM', () => {
     process.exit(0);
   });
 });
+
 
