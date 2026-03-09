@@ -1,40 +1,26 @@
-# hasown <sup>[![Version Badge][npm-version-svg]][package-url]</sup>
+# ignore-by-default
 
-[![github actions][actions-image]][actions-url]
-[![coverage][codecov-image]][codecov-url]
-[![License][license-image]][license-url]
-[![Downloads][downloads-image]][downloads-url]
+This is a package aimed at Node.js development tools. It provides a list of
+directories that should probably be ignored by such tools, e.g. when watching
+for file changes.
 
-[![npm badge][npm-badge-png]][package-url]
+It's used by [AVA](https://www.npmjs.com/package/ava) and
+[nodemon](https://www.npmjs.com/package/nodemon).
 
-A robust, ES3 compatible, "has own property" predicate.
+[Please contribute!](./CONTRIBUTING.md)
 
-## Example
+## Installation
 
-```js
-const assert = require('assert');
-const hasOwn = require('hasown');
-
-assert.equal(hasOwn({}, 'toString'), false);
-assert.equal(hasOwn([], 'length'), true);
-assert.equal(hasOwn({ a: 42 }, 'a'), true);
+```
+npm install --save ignore-by-default
 ```
 
-## Tests
-Simply clone the repo, `npm install`, and run `npm test`
+## Usage
 
-[package-url]: https://npmjs.org/package/hasown
-[npm-version-svg]: https://versionbadg.es/inspect-js/hasown.svg
-[deps-svg]: https://david-dm.org/inspect-js/hasOwn.svg
-[deps-url]: https://david-dm.org/inspect-js/hasOwn
-[dev-deps-svg]: https://david-dm.org/inspect-js/hasOwn/dev-status.svg
-[dev-deps-url]: https://david-dm.org/inspect-js/hasOwn#info=devDependencies
-[npm-badge-png]: https://nodei.co/npm/hasown.png?downloads=true&stars=true
-[license-image]: https://img.shields.io/npm/l/hasown.svg
-[license-url]: LICENSE
-[downloads-image]: https://img.shields.io/npm/dm/hasown.svg
-[downloads-url]: https://npm-stat.com/charts.html?package=hasown
-[codecov-image]: https://codecov.io/gh/inspect-js/hasOwn/branch/main/graphs/badge.svg
-[codecov-url]: https://app.codecov.io/gh/inspect-js/hasOwn/
-[actions-image]: https://img.shields.io/endpoint?url=https://github-actions-badge-u3jn4tfpocch.runkit.sh/inspect-js/hasOwn
-[actions-url]: https://github.com/inspect-js/hasOwn/actions
+The `ignore-by-default` module exports a `directories()` function, which will
+return an array of directory names. These are the ones you should ignore.
+
+```js
+// ['.git', '.sass_cache', …]
+var ignoredDirectories = require('ignore-by-default').directories()
+```
