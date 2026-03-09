@@ -1,8 +1,6 @@
 
 test:
-	@./node_modules/.bin/mocha \
-		--require should \
-		--reporter spec \
-		--bail
+	@node_modules/.bin/tape test.js
 
 .PHONY: test
+

@@ -1,24 +1,17 @@
-/*---------------------------------------------------------------------------------------------
- *  Copyright (c) Microsoft Corporation. All rights reserved.
- *  Licensed under the MIT License.
- *  REQUIREMENT: This definition is dependent on the @types/node definition.
- *  Install with `npm install @types/node --save-dev`
- *--------------------------------------------------------------------------------------------*/
+/**
+Check if the character represented by a given [Unicode code point](https://en.wikipedia.org/wiki/Code_point) is [fullwidth](https://en.wikipedia.org/wiki/Halfwidth_and_fullwidth_forms).
 
-declare module 'iconv-lite' {
-	export function decode(buffer: Buffer, encoding: string, options?: Options): string;
+@param codePoint - The [code point](https://en.wikipedia.org/wiki/Code_point) of a character.
 
-	export function encode(content: string, encoding: string, options?: Options): Buffer;
+@example
+```
+import isFullwidthCodePoint from 'is-fullwidth-code-point';
 
-	export function encodingExists(encoding: string): boolean;
+isFullwidthCodePoint('谢'.codePointAt(0));
+//=> true
 
-	export function decodeStream(encoding: string, options?: Options): NodeJS.ReadWriteStream;
-
-	export function encodeStream(encoding: string, options?: Options): NodeJS.ReadWriteStream;
-}
-
-export interface Options {
-    stripBOM?: boolean;
-    addBOM?: boolean;
-    defaultEncoding?: string;
-}
+isFullwidthCodePoint('a'.codePointAt(0));
+//=> false
+```
+*/
+export default function isFullwidthCodePoint(codePoint: number): boolean;
