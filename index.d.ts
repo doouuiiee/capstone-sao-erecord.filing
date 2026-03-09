@@ -1,5 +1,3 @@
-declare function getProto<O extends object>(object: O): object | null;
+declare function hasOwn<O, K extends PropertyKey, V = unknown>(o: O, p: K): o is O & Record<K, V>;
 
-declare const x: typeof getProto | null;
-
-export = x;
+export = hasOwn;
