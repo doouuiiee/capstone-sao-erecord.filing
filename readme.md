@@ -1,125 +1,51 @@
-# make-dir [![Build Status](https://travis-ci.org/sindresorhus/make-dir.svg?branch=master)](https://travis-ci.org/sindresorhus/make-dir) [![codecov](https://codecov.io/gh/sindresorhus/make-dir/branch/master/graph/badge.svg)](https://codecov.io/gh/sindresorhus/make-dir)
+# ms
 
-> Make a directory and its parents if needed - Think `mkdir -p`
+[![Build Status](https://travis-ci.org/zeit/ms.svg?branch=master)](https://travis-ci.org/zeit/ms)
+[![Slack Channel](http://zeit-slackin.now.sh/badge.svg)](https://zeit.chat/)
 
-## Advantages over [`mkdirp`](https://github.com/substack/node-mkdirp)
+Use this package to easily convert various time formats to milliseconds.
 
-- Promise API *(Async/await ready!)*
-- Fixes many `mkdirp` issues: [#96](https://github.com/substack/node-mkdirp/pull/96) [#70](https://github.com/substack/node-mkdirp/issues/70) [#66](https://github.com/substack/node-mkdirp/issues/66)
-- 100% test coverage
-- CI-tested on macOS, Linux, and Windows
-- Actively maintained
-- Doesn't bundle a CLI
-- Uses the native `fs.mkdir/mkdirSync` [`recursive` option](https://nodejs.org/dist/latest/docs/api/fs.html#fs_fs_mkdir_path_options_callback) in Node.js >=10.12.0 unless [overridden](#fs)
-
-## Install
-
-```
-$ npm install make-dir
-```
-
-## Usage
-
-```
-$ pwd
-/Users/sindresorhus/fun
-$ tree
-.
-```
+## Examples
 
 ```js
-const makeDir = require('make-dir');
-
-(async () => {
-	const path = await makeDir('unicorn/rainbow/cake');
-
-	console.log(path);
-	//=> '/Users/sindresorhus/fun/unicorn/rainbow/cake'
-})();
+ms('2 days')  // 172800000
+ms('1d')      // 86400000
+ms('10h')     // 36000000
+ms('2.5 hrs') // 9000000
+ms('2h')      // 7200000
+ms('1m')      // 60000
+ms('5s')      // 5000
+ms('1y')      // 31557600000
+ms('100')     // 100
 ```
 
-```
-$ tree
-.
-└── unicorn
-    └── rainbow
-        └── cake
-```
-
-Multiple directories:
+### Convert from milliseconds
 
 ```js
-const makeDir = require('make-dir');
-
-(async () => {
-	const paths = await Promise.all([
-		makeDir('unicorn/rainbow'),
-		makeDir('foo/bar')
-	]);
-
-	console.log(paths);
-	/*
-	[
-		'/Users/sindresorhus/fun/unicorn/rainbow',
-		'/Users/sindresorhus/fun/foo/bar'
-	]
-	*/
-})();
+ms(60000)             // "1m"
+ms(2 * 60000)         // "2m"
+ms(ms('10 hours'))    // "10h"
 ```
 
-## API
+### Time format written-out
 
-### makeDir(path, options?)
+```js
+ms(60000, { long: true })             // "1 minute"
+ms(2 * 60000, { long: true })         // "2 minutes"
+ms(ms('10 hours'), { long: true })    // "10 hours"
+```
 
-Returns a `Promise` for the path to the created directory.
+## Features
 
-### makeDir.sync(path, options?)
+- Works both in [node](https://nodejs.org) and in the browser.
+- If a number is supplied to `ms`, a string with a unit is returned.
+- If a string that contains the number is supplied, it returns it as a number (e.g.: it returns `100` for `'100'`).
+- If you pass a string with a number and a valid unit, the number of equivalent ms is returned.
 
-Returns the path to the created directory.
+## Caught a bug?
 
-#### path
+1. [Fork](https://help.github.com/articles/fork-a-repo/) this repository to your own GitHub account and then [clone](https://help.github.com/articles/cloning-a-repository/) it to your local device
+2. Link the package to the global module directory: `npm link`
+3. Within the module you want to test your local development instance of ms, just link it to the dependencies: `npm link ms`. Instead of the default one from npm, node will now use your clone of ms!
 
-Type: `string`
-
-Directory to create.
-
-#### options
-
-Type: `object`
-
-##### mode
-
-Type: `integer`\
-Default: `0o777`
-
-Directory [permissions](https://x-team.com/blog/file-system-permissions-umask-node-js/).
-
-##### fs
-
-Type: `object`\
-Default: `require('fs')`
-
-Use a custom `fs` implementation. For example [`graceful-fs`](https://github.com/isaacs/node-graceful-fs).
-
-Using a custom `fs` implementation will block the use of the native `recursive` option if `fs.mkdir` or `fs.mkdirSync` is not the native function.
-
-## Related
-
-- [make-dir-cli](https://github.com/sindresorhus/make-dir-cli) - CLI for this module
-- [del](https://github.com/sindresorhus/del) - Delete files and directories
-- [globby](https://github.com/sindresorhus/globby) - User-friendly glob matching
-- [cpy](https://github.com/sindresorhus/cpy) - Copy files
-- [cpy-cli](https://github.com/sindresorhus/cpy-cli) - Copy files on the command-line
-- [move-file](https://github.com/sindresorhus/move-file) - Move a file
-
----
-
-<div align="center">
-	<b>
-		<a href="https://tidelift.com/subscription/pkg/npm-make-dir?utm_source=npm-make-dir&utm_medium=referral&utm_campaign=readme">Get professional support for this package with a Tidelift subscription</a>
-	</b>
-	<br>
-	<sub>
-		Tidelift helps make open source sustainable for maintainers while giving companies<br>assurances about security, maintenance, and licensing for their dependencies.
-	</sub>
-</div>
+As always, you can run the tests using: `npm test`
