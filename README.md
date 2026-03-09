@@ -1,191 +1,277 @@
-# Description
+# cors
 
-A node.js module for parsing incoming HTML form data.
+[![NPM Version][npm-image]][npm-url]
+[![NPM Downloads][downloads-image]][downloads-url]
+[![Build Status][github-actions-ci-image]][github-actions-ci-url]
+[![Test Coverage][coveralls-image]][coveralls-url]
 
-Changes (breaking or otherwise) in v1.0.0 can be found [here](https://github.com/mscdex/busboy/issues/266).
+CORS is a [Node.js](https://nodejs.org/en/) middleware for [Express](https://expressjs.com/)/[Connect](https://github.com/senchalabs/connect) that sets [CORS](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CORS) response headers. These headers tell browsers which origins can read responses from your server.
 
-# Requirements
+> [!IMPORTANT]
+> **How CORS Works:** This package sets response headers—it doesn't block requests. CORS is enforced by browsers: they check the headers and decide if JavaScript can read the response. Non-browser clients (curl, Postman, other servers) ignore CORS entirely. See the [MDN CORS guide](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CORS) for details.
 
-* [node.js](http://nodejs.org/) -- v10.16.0 or newer
+* [Installation](#installation)
+* [Usage](#usage)
+  * [Simple Usage](#simple-usage-enable-all-cors-requests)
+  * [Enable CORS for a Single Route](#enable-cors-for-a-single-route)
+  * [Configuring CORS](#configuring-cors)
+  * [Configuring CORS w/ Dynamic Origin](#configuring-cors-w-dynamic-origin)
+  * [Enabling CORS Pre-Flight](#enabling-cors-pre-flight)
+  * [Customizing CORS Settings Dynamically per Request](#customizing-cors-settings-dynamically-per-request)
+* [Configuration Options](#configuration-options)
+* [Common Misconceptions](#common-misconceptions)
+* [License](#license)
+* [Original Author](#original-author)
 
+## Installation
 
-# Install
+This is a [Node.js](https://nodejs.org/en/) module available through the
+[npm registry](https://www.npmjs.com/). Installation is done using the
+[`npm install` command](https://docs.npmjs.com/downloading-and-installing-packages-locally):
 
-    npm install busboy
-
-
-# Examples
-
-* Parsing (multipart) with default options:
-
-```js
-const http = require('http');
-
-const busboy = require('busboy');
-
-http.createServer((req, res) => {
-  if (req.method === 'POST') {
-    console.log('POST request');
-    const bb = busboy({ headers: req.headers });
-    bb.on('file', (name, file, info) => {
-      const { filename, encoding, mimeType } = info;
-      console.log(
-        `File [${name}]: filename: %j, encoding: %j, mimeType: %j`,
-        filename,
-        encoding,
-        mimeType
-      );
-      file.on('data', (data) => {
-        console.log(`File [${name}] got ${data.length} bytes`);
-      }).on('close', () => {
-        console.log(`File [${name}] done`);
-      });
-    });
-    bb.on('field', (name, val, info) => {
-      console.log(`Field [${name}]: value: %j`, val);
-    });
-    bb.on('close', () => {
-      console.log('Done parsing form!');
-      res.writeHead(303, { Connection: 'close', Location: '/' });
-      res.end();
-    });
-    req.pipe(bb);
-  } else if (req.method === 'GET') {
-    res.writeHead(200, { Connection: 'close' });
-    res.end(`
-      <html>
-        <head></head>
-        <body>
-          <form method="POST" enctype="multipart/form-data">
-            <input type="file" name="filefield"><br />
-            <input type="text" name="textfield"><br />
-            <input type="submit">
-          </form>
-        </body>
-      </html>
-    `);
-  }
-}).listen(8000, () => {
-  console.log('Listening for requests');
-});
-
-// Example output:
-//
-// Listening for requests
-//   < ... form submitted ... >
-// POST request
-// File [filefield]: filename: "logo.jpg", encoding: "binary", mime: "image/jpeg"
-// File [filefield] got 11912 bytes
-// Field [textfield]: value: "testing! :-)"
-// File [filefield] done
-// Done parsing form!
+```sh
+$ npm install cors
 ```
 
-* Save all incoming files to disk:
+## Usage
 
-```js
-const { randomFillSync } = require('crypto');
-const fs = require('fs');
-const http = require('http');
-const os = require('os');
-const path = require('path');
+### Simple Usage (Enable *All* CORS Requests)
 
-const busboy = require('busboy');
+```javascript
+var express = require('express')
+var cors = require('cors')
+var app = express()
 
-const random = (() => {
-  const buf = Buffer.alloc(16);
-  return () => randomFillSync(buf).toString('hex');
-})();
+// Adds headers: Access-Control-Allow-Origin: *
+app.use(cors())
 
-http.createServer((req, res) => {
-  if (req.method === 'POST') {
-    const bb = busboy({ headers: req.headers });
-    bb.on('file', (name, file, info) => {
-      const saveTo = path.join(os.tmpdir(), `busboy-upload-${random()}`);
-      file.pipe(fs.createWriteStream(saveTo));
-    });
-    bb.on('close', () => {
-      res.writeHead(200, { 'Connection': 'close' });
-      res.end(`That's all folks!`);
-    });
-    req.pipe(bb);
-    return;
-  }
-  res.writeHead(404);
-  res.end();
-}).listen(8000, () => {
-  console.log('Listening for requests');
-});
+app.get('/products/:id', function (req, res, next) {
+  res.json({msg: 'Hello'})
+})
+
+app.listen(80, function () {
+  console.log('web server listening on port 80')
+})
 ```
 
+### Enable CORS for a Single Route
 
-# API
+```javascript
+var express = require('express')
+var cors = require('cors')
+var app = express()
 
-## Exports
+// Adds headers: Access-Control-Allow-Origin: *
+app.get('/products/:id', cors(), function (req, res, next) {
+  res.json({msg: 'Hello'})
+})
 
-`busboy` exports a single function:
+app.listen(80, function () {
+  console.log('web server listening on port 80')
+})
+```
 
-**( _function_ )**(< _object_ >config) - Creates and returns a new _Writable_ form parser stream.
+### Configuring CORS
 
-* Valid `config` properties:
+See the [configuration options](#configuration-options) for details.
 
-    * **headers** - _object_ - These are the HTTP headers of the incoming request, which are used by individual parsers.
+```javascript
+var express = require('express')
+var cors = require('cors')
+var app = express()
 
-    * **highWaterMark** - _integer_ - highWaterMark to use for the parser stream. **Default:** node's _stream.Writable_ default.
+var corsOptions = {
+  origin: 'http://example.com',
+  optionsSuccessStatus: 200 // some legacy browsers (IE11, various SmartTVs) choke on 204
+}
 
-    * **fileHwm** - _integer_ - highWaterMark to use for individual file streams. **Default:** node's _stream.Readable_ default.
+// Adds headers: Access-Control-Allow-Origin: http://example.com, Vary: Origin
+app.get('/products/:id', cors(corsOptions), function (req, res, next) {
+  res.json({msg: 'Hello'})
+})
 
-    * **defCharset** - _string_ - Default character set to use when one isn't defined. **Default:** `'utf8'`.
+app.listen(80, function () {
+  console.log('web server listening on port 80')
+})
+```
 
-    * **defParamCharset** - _string_ - For multipart forms, the default character set to use for values of part header parameters (e.g. filename) that are not extended parameters (that contain an explicit charset). **Default:** `'latin1'`.
+### Configuring CORS w/ Dynamic Origin
 
-    * **preservePath** - _boolean_ - If paths in filenames from file parts in a `'multipart/form-data'` request shall be preserved. **Default:** `false`.
+This module supports validating the origin dynamically using a function provided
+to the `origin` option. This function will be passed a string that is the origin
+(or `undefined` if the request has no origin), and a `callback` with the signature
+`callback(error, origin)`.
 
-    * **limits** - _object_ - Various limits on incoming data. Valid properties are:
+The `origin` argument to the callback can be any value allowed for the `origin`
+option of the middleware, except a function. See the
+[configuration options](#configuration-options) section for more information on all
+the possible value types.
 
-        * **fieldNameSize** - _integer_ - Max field name size (in bytes). **Default:** `100`.
+This function is designed to allow the dynamic loading of allowed origin(s) from
+a backing datasource, like a database.
 
-        * **fieldSize** - _integer_ - Max field value size (in bytes). **Default:** `1048576` (1MB).
+```javascript
+var express = require('express')
+var cors = require('cors')
+var app = express()
 
-        * **fields** - _integer_ - Max number of non-file fields. **Default:** `Infinity`.
+var corsOptions = {
+  origin: function (origin, callback) {
+    // db.loadOrigins is an example call to load
+    // a list of origins from a backing database
+    db.loadOrigins(function (error, origins) {
+      callback(error, origins)
+    })
+  }
+}
 
-        * **fileSize** - _integer_ - For multipart forms, the max file size (in bytes). **Default:** `Infinity`.
+// Adds headers: Access-Control-Allow-Origin: <matched origin>, Vary: Origin
+app.get('/products/:id', cors(corsOptions), function (req, res, next) {
+  res.json({msg: 'Hello'})
+})
 
-        * **files** - _integer_ - For multipart forms, the max number of file fields. **Default:** `Infinity`.
+app.listen(80, function () {
+  console.log('web server listening on port 80')
+})
+```
 
-        * **parts** - _integer_ - For multipart forms, the max number of parts (fields + files). **Default:** `Infinity`.
+### Enabling CORS Pre-Flight
 
-        * **headerPairs** - _integer_ - For multipart forms, the max number of header key-value pairs to parse. **Default:** `2000` (same as node's http module).
+Certain CORS requests are considered 'complex' and require an initial
+`OPTIONS` request (called the "pre-flight request"). An example of a
+'complex' CORS request is one that uses an HTTP verb other than
+GET/HEAD/POST (such as DELETE) or that uses custom headers. To enable
+pre-flighting, you must add a new OPTIONS handler for the route you want
+to support:
 
-This function can throw exceptions if there is something wrong with the values in `config`. For example, if the Content-Type in `headers` is missing entirely, is not a supported type, or is missing the boundary for `'multipart/form-data'` requests.
+```javascript
+var express = require('express')
+var cors = require('cors')
+var app = express()
 
-## (Special) Parser stream events
+app.options('/products/:id', cors()) // preflight for DELETE
+app.del('/products/:id', cors(), function (req, res, next) {
+  res.json({msg: 'Hello'})
+})
 
-* **file**(< _string_ >name, < _Readable_ >stream, < _object_ >info) - Emitted for each new file found. `name` contains the form field name. `stream` is a _Readable_ stream containing the file's data. No transformations/conversions (e.g. base64 to raw binary) are done on the file's data. `info` contains the following properties:
+app.listen(80, function () {
+  console.log('web server listening on port 80')
+})
+```
 
-    * `filename` - _string_ - If supplied, this contains the file's filename. **WARNING:** You should almost _never_ use this value as-is (especially if you are using `preservePath: true` in your `config`) as it could contain malicious input. You are better off generating your own (safe) filenames, or at the very least using a hash of the filename.
+You can also enable pre-flight across-the-board like so:
 
-    * `encoding` - _string_ - The file's `'Content-Transfer-Encoding'` value.
+```javascript
+app.options('*', cors()) // include before other routes
+```
 
-    * `mimeType` - _string_ - The file's `'Content-Type'` value.
+NOTE: When using this middleware as an application level middleware (for
+example, `app.use(cors())`), pre-flight requests are already handled for all
+routes.
 
-    **Note:** If you listen for this event, you should always consume the `stream` whether you care about its contents or not (you can simply do `stream.resume();` if you want to discard/skip the contents), otherwise the `'finish'`/`'close'` event will never fire on the busboy parser stream.
-    However, if you aren't accepting files, you can either simply not listen for the `'file'` event at all or set `limits.files` to `0`, and any/all files will be automatically skipped (these skipped files will still count towards any configured `limits.files` and `limits.parts` limits though).
+### Customizing CORS Settings Dynamically per Request
 
-    **Note:** If a configured `limits.fileSize` limit was reached for a file, `stream` will both have a boolean property `truncated` set to `true` (best checked at the end of the stream) and emit a `'limit'` event to notify you when this happens.
+For APIs that require different CORS configurations for specific routes or requests, you can dynamically generate CORS options based on the incoming request. The `cors` middleware allows you to achieve this by passing a function instead of static options. This function is called for each incoming request and must use the callback pattern to return the appropriate CORS options.
 
-* **field**(< _string_ >name, < _string_ >value, < _object_ >info) - Emitted for each new non-file field found. `name` contains the form field name. `value` contains the string value of the field. `info` contains the following properties:
+The function accepts:
+1. **`req`**: 
+   - The incoming request object.
 
-    * `nameTruncated` - _boolean_ - Whether `name` was truncated or not (due to a configured `limits.fieldNameSize` limit)
+2. **`callback(error, corsOptions)`**: 
+   - A function used to return the computed CORS options.
+   - **Arguments**:
+     - **`error`**: Pass `null` if there’s no error, or an error object to indicate a failure.
+     - **`corsOptions`**: An object specifying the CORS policy for the current request.
 
-    * `valueTruncated` - _boolean_ - Whether `value` was truncated or not (due to a configured `limits.fieldSize` limit)
+Here’s an example that handles both public routes and restricted, credential-sensitive routes:
 
-    * `encoding` - _string_ - The field's `'Content-Transfer-Encoding'` value.
+```javascript
+var dynamicCorsOptions = function(req, callback) {
+  var corsOptions;
+  if (req.path.startsWith('/auth/connect/')) {
+    // Access-Control-Allow-Origin: http://mydomain.com, Access-Control-Allow-Credentials: true, Vary: Origin
+    corsOptions = {
+      origin: 'http://mydomain.com',
+      credentials: true
+    };
+  } else {
+    // Access-Control-Allow-Origin: *
+    corsOptions = { origin: '*' };
+  }
+  callback(null, corsOptions);
+};
 
-    * `mimeType` - _string_ - The field's `'Content-Type'` value.
+app.use(cors(dynamicCorsOptions));
 
-* **partsLimit**() - Emitted when the configured `limits.parts` limit has been reached. No more `'file'` or `'field'` events will be emitted.
+app.get('/auth/connect/twitter', function (req, res) {
+  res.send('Hello');
+});
 
-* **filesLimit**() - Emitted when the configured `limits.files` limit has been reached. No more `'file'` events will be emitted.
+app.get('/public', function (req, res) {
+  res.send('Hello');
+});
 
-* **fieldsLimit**() - Emitted when the configured `limits.fields` limit has been reached. No more `'field'` events will be emitted.
+app.listen(80, function () {
+  console.log('web server listening on port 80')
+})
+```
+
+## Configuration Options
+
+* `origin`: Configures the **Access-Control-Allow-Origin** CORS header. Possible values:
+  - `Boolean` - set `origin` to `true` to reflect the [request origin](https://datatracker.ietf.org/doc/html/draft-abarth-origin-09), as defined by `req.header('Origin')`, or set it to `false` to disable CORS.
+  - `String` - set `origin` to a specific origin. For example, if you set it to
+    - `"http://example.com"` only requests from "http://example.com" will be allowed.
+    - `"*"` for all domains to be allowed. 
+  - `RegExp` - set `origin` to a regular expression pattern which will be used to test the request origin. If it's a match, the request origin will be reflected. For example the pattern `/example\.com$/` will reflect any request that is coming from an origin ending with "example.com".
+  - `Array` - set `origin` to an array of valid origins. Each origin can be a `String` or a `RegExp`. For example `["http://example1.com", /\.example2\.com$/]` will accept any request from "http://example1.com" or from a subdomain of "example2.com".
+  - `Function` - set `origin` to a function implementing some custom logic. The function takes the request origin as the first parameter and a callback (called as `callback(err, origin)`, where `origin` is a non-function value of the `origin` option) as the second.
+* `methods`: Configures the **Access-Control-Allow-Methods** CORS header. Expects a comma-delimited string (ex: 'GET,PUT,POST') or an array (ex: `['GET', 'PUT', 'POST']`).
+* `allowedHeaders`: Configures the **Access-Control-Allow-Headers** CORS header. Expects a comma-delimited string (ex: 'Content-Type,Authorization') or an array (ex: `['Content-Type', 'Authorization']`). If not specified, defaults to reflecting the headers specified in the request's **Access-Control-Request-Headers** header.
+* `exposedHeaders`: Configures the **Access-Control-Expose-Headers** CORS header. Expects a comma-delimited string (ex: 'Content-Range,X-Content-Range') or an array (ex: `['Content-Range', 'X-Content-Range']`). If not specified, no custom headers are exposed.
+* `credentials`: Configures the **Access-Control-Allow-Credentials** CORS header. Set to `true` to pass the header, otherwise it is omitted.
+* `maxAge`: Configures the **Access-Control-Max-Age** CORS header. Set to an integer to pass the header, otherwise it is omitted.
+* `preflightContinue`: Pass the CORS preflight response to the next handler.
+* `optionsSuccessStatus`: Provides a status code to use for successful `OPTIONS` requests, since some legacy browsers (IE11, various SmartTVs) choke on `204`.
+
+The default configuration is the equivalent of:
+
+```json
+{
+  "origin": "*",
+  "methods": "GET,HEAD,PUT,PATCH,POST,DELETE",
+  "preflightContinue": false,
+  "optionsSuccessStatus": 204
+}
+```
+
+## Common Misconceptions
+
+### "CORS blocks requests from disallowed origins"
+
+**No.** Your server receives and processes every request. CORS headers tell the browser whether JavaScript can read the response—not whether the request is allowed.
+
+### "CORS protects my API from unauthorized access"
+
+**No.** CORS is not access control. Any HTTP client (curl, Postman, another server) can call your API regardless of CORS settings. Use authentication and authorization to protect your API.
+
+### "Setting `origin: 'http://example.com'` means only that domain can access my server"
+
+**No.** It means browsers will only let JavaScript from that origin read responses. The server still responds to all requests.
+
+## License
+
+[MIT License](http://www.opensource.org/licenses/mit-license.php)
+
+## Original Author
+
+[Troy Goode](https://github.com/TroyGoode) ([troygoode@gmail.com](mailto:troygoode@gmail.com))
+
+[coveralls-image]: https://img.shields.io/coveralls/expressjs/cors/master.svg
+[coveralls-url]: https://coveralls.io/r/expressjs/cors?branch=master
+[downloads-image]: https://img.shields.io/npm/dm/cors.svg
+[downloads-url]: https://npmjs.com/package/cors
+[github-actions-ci-image]: https://img.shields.io/github/actions/workflow/status/expressjs/cors/ci.yml?branch=master&label=ci
+[github-actions-ci-url]: https://github.com/expressjs/cors?query=workflow%3Aci
+[npm-image]: https://img.shields.io/npm/v/cors.svg
+[npm-url]: https://npmjs.com/package/cors

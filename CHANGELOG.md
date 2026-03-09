@@ -1,178 +1,42 @@
-# 5.1.0 (2022-10-06)
-  * Update `node-pre-gyp` to 1.0.11
+# Changelog
 
-# 5.1.0 (2022-10-06)
-  * Update `node-pre-gyp` to 1.0.10
-  * Replace `nodeunit` with `jest` as the testing library
+All notable changes to this project will be documented in this file.
 
-# 5.0.1 (2021-02-22)
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-  * Update `node-pre-gyp` to 1.0.0
+## [v1.0.4](https://github.com/ljharb/call-bound/compare/v1.0.3...v1.0.4) - 2025-03-03
 
-# 5.0.0 (2020-06-02)
+### Commits
 
-  * Fix the bcrypt "wrap-around" bug. It affects passwords with lengths >= 255.
-    It is uncommon but it's a bug nevertheless. Previous attempts to fix the bug
-    was unsuccessful.
-  * Experimental support for z/OS
-  * Fix a bug related to NUL in password input
-  * Update `node-pre-gyp` to 0.15.0
+- [types] improve types [`e648922`](https://github.com/ljharb/call-bound/commit/e6489222a9e54f350fbf952ceabe51fd8b6027ff)
+- [Dev Deps] update `@arethetypeswrong/cli`, `@ljharb/tsconfig`, `@types/tape`, `es-value-fixtures`, `for-each`, `has-strict-mode`, `object-inspect` [`a42a5eb`](https://github.com/ljharb/call-bound/commit/a42a5ebe6c1b54fcdc7997c7dc64fdca9e936719)
+- [Deps] update `call-bind-apply-helpers`, `get-intrinsic` [`f529eac`](https://github.com/ljharb/call-bound/commit/f529eac132404c17156bbc23ab2297a25d0f20b8)
 
-# 4.0.1 (2020-02-27)
+## [v1.0.3](https://github.com/ljharb/call-bound/compare/v1.0.2...v1.0.3) - 2024-12-15
 
-  * Fix compilation errors in Alpine linux
+### Commits
 
-# 4.0.0 (2020-02-17)
+- [Refactor] use `call-bind-apply-helpers` instead of `call-bind` [`5e0b134`](https://github.com/ljharb/call-bound/commit/5e0b13496df14fb7d05dae9412f088da8d3f75be)
+- [Deps] update `get-intrinsic` [`41fc967`](https://github.com/ljharb/call-bound/commit/41fc96732a22c7b7e8f381f93ccc54bb6293be2e)
+- [readme] fix example [`79a0137`](https://github.com/ljharb/call-bound/commit/79a0137723f7c6d09c9c05452bbf8d5efb5d6e49)
+- [meta] add `sideEffects` flag [`08b07be`](https://github.com/ljharb/call-bound/commit/08b07be7f1c03f67dc6f3cdaf0906259771859f7)
 
-  * Switch to NAPI bcrypt
-  * Drop support for NodeJS 8
+## [v1.0.2](https://github.com/ljharb/call-bound/compare/v1.0.1...v1.0.2) - 2024-12-10
 
-# 3.0.8 (2019-12-31)
+### Commits
 
-  * Update `node-pre-gyp` to 0.14
-  * Pre-built binaries for NodeJS 13
+- [Dev Deps] update `@arethetypeswrong/cli`, `@ljharb/tsconfig`, `gopd` [`e6a5ffe`](https://github.com/ljharb/call-bound/commit/e6a5ffe849368fe4f74dfd6cdeca1b9baa39e8d5)
+- [Deps] update `call-bind`, `get-intrinsic` [`2aeb5b5`](https://github.com/ljharb/call-bound/commit/2aeb5b521dc2b2683d1345c753ea1161de2d1c14)
+- [types] improve return type [`1a0c9fe`](https://github.com/ljharb/call-bound/commit/1a0c9fe3114471e7ca1f57d104e2efe713bb4871)
 
-# 3.0.7 (2019-10-18)
+## v1.0.1 - 2024-12-05
 
-  * Update `nan` to 2.14.0
-  * Update `node-pre-gyp` to 0.13
+### Commits
 
-# 3.0.6 (2019-04-11)
-
-  * Update `nan` to 2.13.2
-
-# 3.0.5 (2019-03-19)
-
-  * Update `nan` to 2.13.1
-  * NodeJS 12 compatibility
-  * Remove `node-pre-gyp` from bundled dependencies
-
-# 3.0.4-napi (2019-03-08)
-
-  * Sync N-API bcrypt with NAN bcrypt
-
-# 3.0.4 (2019-02-07)
-
-  * Fix GCC, NAN and V8 deprecation warnings
-
-# 3.0.3 (2018-12-19)
-
-  * Update `nan` to 2.12.1
-
-# 3.0.2 (2018-10-18)
-
-  * Update `nan` to 2.11.1
-
-# 3.0.1 (2018-09-20)
-
-  * Update `nan` to 2.11.0
-
-# 3.0.0 (2018-07-06)
-
-  * Drop support for NodeJS <= 4
-
-# 2.0.1 (2018-04-20)
-
-  * Update `node-pre-gyp` to allow downloading prebuilt modules
-
-# 2.0.0 (2018-04-07)
-
-  * Make `2b` the default bcrypt version
-
-# 1.1.0-napi (2018-01-21)
-
-  * Initial support for [N-API](https://nodejs.org/api/n-api.html)
-
-# 1.0.3 (2016-08-23)
-
-  * update to nan v2.6.2 for NodeJS 8 support
-  * Fix: use npm scripts instead of node-gyp directly.
-
-# 1.0.2 (2016-12-31)
-
-  * Fix `compare` promise rejection with invalid arguments
-
-# 1.0.1 (2016-12-07)
-
-  * Fix destructuring imports with promises
-
-# 1.0.0 (2016-12-04)
-
-  * add Promise support (commit 2488473)
-
-# 0.8.7 (2016-06-09)
-
-  * update nan to 2.3.5 for improved node v6 support
-
-# 0.8.6 (2016-04-20)
-
-  * update nan for node v6 support
-
-# 0.8.5 (2015-08-12)
-
-  * update to nan v2 (adds support for iojs 3)
-
-# 0.8.4 (2015-07-24)
-
-  * fix deprecation warning for the Encode API
-
-# 0.8.3 (2015-05-06)
-
-  * update nan to 1.8.4 for iojs 2.x support
-
-# 0.8.2 (2015-03-28)
-
-  * always use callback for generating random bytes to avoid blocking
-
-# 0.8.1 (2015-01-18)
-  * update NaN to 1.5.0 for iojs support
-
-# 0.8.0 (2014-08-03)
-  * migrate to NAN for bindings
-
-# v0.5.0
-  * Fix for issue around empty string params throwing Errors.
-  * Method deprecation.
-  * Upgrade from libeio/ev to libuv. (shtylman)
-  ** --- NOTE --- Breaks 0.4.x compatability
-  * EV_MULTIPLICITY compile flag.
-
-# v0.4.1
-  * Thread safety fix around OpenSSL (GH-32). (bnoordhuis - through node)
-  * C++ code changes using delete and new instead of malloc and free. (shtylman)
-  * Compile options for speed, zoom. (shtylman)
-  * Move much of the type and variable checking to the JS. (shtylman)
-
-# v0.4.0
-  * Added getRounds function that will tell you the number of rounds within a hash/salt
-
-# v0.3.2
-  * Fix api issue with async salt gen first param
-
-# v0.3.1
-  * Compile under node 0.5.x
-
-# v0.3.0
-  * Internal Refactoring
-  * Remove pthread dependencies and locking
-  * Fix compiler warnings and a memory bug
-
-# v0.2.4
-  * Use threadsafe functions instead of pthread mutexes
-  * salt validation to make sure the salt is of the correct size and format
-
-# v0.2.3
-  * cygwin support
-
-# v0.2.2
-  * Remove dependency on libbsd, use libssl instead
-
-# v0.2.0
-  * Added async functionality
-  * API changes
-    * hashpw -> encrypt
-    * all old sync methods now end with _sync
-  * Removed libbsd(arc4random) dependency...now uses openssl which is more widely spread
-
-# v0.1.2
-  * Security fix. Wasn't reading rounds in properly and was always only using 4 rounds
+- Initial implementation, tests, readme, types [`6d94121`](https://github.com/ljharb/call-bound/commit/6d94121a9243602e506334069f7a03189fe3363d)
+- Initial commit [`0eae867`](https://github.com/ljharb/call-bound/commit/0eae867334ea025c33e6e91cdecfc9df96680cf9)
+- npm init [`71b2479`](https://github.com/ljharb/call-bound/commit/71b2479c6723e0b7d91a6b663613067e98b7b275)
+- Only apps should have lockfiles [`c3754a9`](https://github.com/ljharb/call-bound/commit/c3754a949b7f9132b47e2d18c1729889736741eb)
+- [actions] skip `npm ls` in node &lt; 10 [`74275a5`](https://github.com/ljharb/call-bound/commit/74275a5186b8caf6309b6b97472bdcb0df4683a8)
+- [Dev Deps] add missing peer dep [`1354de8`](https://github.com/ljharb/call-bound/commit/1354de8679413e4ae9c523d85f76fa7a5e032d97)
