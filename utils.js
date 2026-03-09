@@ -1,303 +1,190 @@
-/*!
- * express
- * Copyright(c) 2009-2013 TJ Holowaychuk
- * Copyright(c) 2014-2015 Douglas Christopher Wilson
- * MIT Licensed
- */
+"use strict";
 
-'use strict';
+// Returns "Type(value) is Object" in ES terminology.
+function isObject(value) {
+  return (typeof value === "object" && value !== null) || typeof value === "function";
+}
 
-/**
- * Module dependencies.
- * @api private
- */
+const hasOwn = Function.prototype.call.bind(Object.prototype.hasOwnProperty);
 
-var Buffer = require('safe-buffer').Buffer
-var contentDisposition = require('content-disposition');
-var contentType = require('content-type');
-var deprecate = require('depd')('express');
-var flatten = require('array-flatten');
-var mime = require('send').mime;
-var etag = require('etag');
-var proxyaddr = require('proxy-addr');
-var qs = require('qs');
-var querystring = require('querystring');
-
-/**
- * Return strong ETag for `body`.
- *
- * @param {String|Buffer} body
- * @param {String} [encoding]
- * @return {String}
- * @api private
- */
-
-exports.etag = createETagGenerator({ weak: false })
-
-/**
- * Return weak ETag for `body`.
- *
- * @param {String|Buffer} body
- * @param {String} [encoding]
- * @return {String}
- * @api private
- */
-
-exports.wetag = createETagGenerator({ weak: true })
-
-/**
- * Check if `path` looks absolute.
- *
- * @param {String} path
- * @return {Boolean}
- * @api private
- */
-
-exports.isAbsolute = function(path){
-  if ('/' === path[0]) return true;
-  if (':' === path[1] && ('\\' === path[2] || '/' === path[2])) return true; // Windows device path
-  if ('\\\\' === path.substring(0, 2)) return true; // Microsoft Azure absolute path
-};
-
-/**
- * Flatten the given `arr`.
- *
- * @param {Array} arr
- * @return {Array}
- * @api private
- */
-
-exports.flatten = deprecate.function(flatten,
-  'utils.flatten: use array-flatten npm module instead');
-
-/**
- * Normalize the given `type`, for example "html" becomes "text/html".
- *
- * @param {String} type
- * @return {Object}
- * @api private
- */
-
-exports.normalizeType = function(type){
-  return ~type.indexOf('/')
-    ? acceptParams(type)
-    : { value: mime.lookup(type), params: {} };
-};
-
-/**
- * Normalize `types`, for example "html" becomes "text/html".
- *
- * @param {Array} types
- * @return {Array}
- * @api private
- */
-
-exports.normalizeTypes = function(types){
-  var ret = [];
-
-  for (var i = 0; i < types.length; ++i) {
-    ret.push(exports.normalizeType(types[i]));
-  }
-
-  return ret;
-};
-
-/**
- * Generate Content-Disposition header appropriate for the filename.
- * non-ascii filenames are urlencoded and a filename* parameter is added
- *
- * @param {String} filename
- * @return {String}
- * @api private
- */
-
-exports.contentDisposition = deprecate.function(contentDisposition,
-  'utils.contentDisposition: use content-disposition npm module instead');
-
-/**
- * Parse accept params `str` returning an
- * object with `.value`, `.quality` and `.params`.
- *
- * @param {String} str
- * @return {Object}
- * @api private
- */
-
-function acceptParams (str) {
-  var parts = str.split(/ *; */);
-  var ret = { value: parts[0], quality: 1, params: {} }
-
-  for (var i = 1; i < parts.length; ++i) {
-    var pms = parts[i].split(/ *= */);
-    if ('q' === pms[0]) {
-      ret.quality = parseFloat(pms[1]);
-    } else {
-      ret.params[pms[0]] = pms[1];
+// Like `Object.assign`, but using `[[GetOwnProperty]]` and `[[DefineOwnProperty]]`
+// instead of `[[Get]]` and `[[Set]]` and only allowing objects
+function define(target, source) {
+  for (const key of Reflect.ownKeys(source)) {
+    const descriptor = Reflect.getOwnPropertyDescriptor(source, key);
+    if (descriptor && !Reflect.defineProperty(target, key, descriptor)) {
+      throw new TypeError(`Cannot redefine property: ${String(key)}`);
     }
   }
-
-  return ret;
 }
 
-/**
- * Compile "etag" value to function.
- *
- * @param  {Boolean|String|Function} val
- * @return {Function}
- * @api private
- */
-
-exports.compileETag = function(val) {
-  var fn;
-
-  if (typeof val === 'function') {
-    return val;
-  }
-
-  switch (val) {
-    case true:
-    case 'weak':
-      fn = exports.wetag;
-      break;
-    case false:
-      break;
-    case 'strong':
-      fn = exports.etag;
-      break;
-    default:
-      throw new TypeError('unknown value for etag function: ' + val);
-  }
-
-  return fn;
+function newObjectInRealm(globalObject, object) {
+  const ctorRegistry = initCtorRegistry(globalObject);
+  return Object.defineProperties(
+    Object.create(ctorRegistry["%Object.prototype%"]),
+    Object.getOwnPropertyDescriptors(object)
+  );
 }
 
-/**
- * Compile "query parser" value to function.
- *
- * @param  {String|Function} val
- * @return {Function}
- * @api private
- */
+const wrapperSymbol = Symbol("wrapper");
+const implSymbol = Symbol("impl");
+const sameObjectCaches = Symbol("SameObject caches");
+const ctorRegistrySymbol = Symbol.for("[webidl2js] constructor registry");
 
-exports.compileQueryParser = function compileQueryParser(val) {
-  var fn;
+const AsyncIteratorPrototype = Object.getPrototypeOf(Object.getPrototypeOf(async function* () {}).prototype);
 
-  if (typeof val === 'function') {
-    return val;
+function initCtorRegistry(globalObject) {
+  if (hasOwn(globalObject, ctorRegistrySymbol)) {
+    return globalObject[ctorRegistrySymbol];
   }
 
-  switch (val) {
-    case true:
-    case 'simple':
-      fn = querystring.parse;
-      break;
-    case false:
-      fn = newObject;
-      break;
-    case 'extended':
-      fn = parseExtendedQueryString;
-      break;
-    default:
-      throw new TypeError('unknown value for query parser function: ' + val);
+  const ctorRegistry = Object.create(null);
+
+  // In addition to registering all the WebIDL2JS-generated types in the constructor registry,
+  // we also register a few intrinsics that we make use of in generated code, since they are not
+  // easy to grab from the globalObject variable.
+  ctorRegistry["%Object.prototype%"] = globalObject.Object.prototype;
+  ctorRegistry["%IteratorPrototype%"] = Object.getPrototypeOf(
+    Object.getPrototypeOf(new globalObject.Array()[Symbol.iterator]())
+  );
+
+  try {
+    ctorRegistry["%AsyncIteratorPrototype%"] = Object.getPrototypeOf(
+      Object.getPrototypeOf(
+        globalObject.eval("(async function* () {})").prototype
+      )
+    );
+  } catch {
+    ctorRegistry["%AsyncIteratorPrototype%"] = AsyncIteratorPrototype;
   }
 
-  return fn;
+  globalObject[ctorRegistrySymbol] = ctorRegistry;
+  return ctorRegistry;
 }
 
-/**
- * Compile "proxy trust" value to function.
- *
- * @param  {Boolean|String|Number|Array|Function} val
- * @return {Function}
- * @api private
- */
-
-exports.compileTrust = function(val) {
-  if (typeof val === 'function') return val;
-
-  if (val === true) {
-    // Support plain true/false
-    return function(){ return true };
+function getSameObject(wrapper, prop, creator) {
+  if (!wrapper[sameObjectCaches]) {
+    wrapper[sameObjectCaches] = Object.create(null);
   }
 
-  if (typeof val === 'number') {
-    // Support trusting hop count
-    return function(a, i){ return i < val };
+  if (prop in wrapper[sameObjectCaches]) {
+    return wrapper[sameObjectCaches][prop];
   }
 
-  if (typeof val === 'string') {
-    // Support comma-separated values
-    val = val.split(',')
-      .map(function (v) { return v.trim() })
-  }
-
-  return proxyaddr.compile(val || []);
+  wrapper[sameObjectCaches][prop] = creator();
+  return wrapper[sameObjectCaches][prop];
 }
 
-/**
- * Set the charset in a given Content-Type string.
- *
- * @param {String} type
- * @param {String} charset
- * @return {String}
- * @api private
- */
+function wrapperForImpl(impl) {
+  return impl ? impl[wrapperSymbol] : null;
+}
 
-exports.setCharset = function setCharset(type, charset) {
-  if (!type || !charset) {
-    return type;
+function implForWrapper(wrapper) {
+  return wrapper ? wrapper[implSymbol] : null;
+}
+
+function tryWrapperForImpl(impl) {
+  const wrapper = wrapperForImpl(impl);
+  return wrapper ? wrapper : impl;
+}
+
+function tryImplForWrapper(wrapper) {
+  const impl = implForWrapper(wrapper);
+  return impl ? impl : wrapper;
+}
+
+const iterInternalSymbol = Symbol("internal");
+
+function isArrayIndexPropName(P) {
+  if (typeof P !== "string") {
+    return false;
   }
+  const i = P >>> 0;
+  if (i === 2 ** 32 - 1) {
+    return false;
+  }
+  const s = `${i}`;
+  if (P !== s) {
+    return false;
+  }
+  return true;
+}
 
-  // parse type
-  var parsed = contentType.parse(type);
+const byteLengthGetter =
+    Object.getOwnPropertyDescriptor(ArrayBuffer.prototype, "byteLength").get;
+function isArrayBuffer(value) {
+  try {
+    byteLengthGetter.call(value);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
 
-  // set charset
-  parsed.parameters.charset = charset;
+function iteratorResult([key, value], kind) {
+  let result;
+  switch (kind) {
+    case "key":
+      result = key;
+      break;
+    case "value":
+      result = value;
+      break;
+    case "key+value":
+      result = [key, value];
+      break;
+  }
+  return { value: result, done: false };
+}
 
-  // format type
-  return contentType.format(parsed);
+const supportsPropertyIndex = Symbol("supports property index");
+const supportedPropertyIndices = Symbol("supported property indices");
+const supportsPropertyName = Symbol("supports property name");
+const supportedPropertyNames = Symbol("supported property names");
+const indexedGet = Symbol("indexed property get");
+const indexedSetNew = Symbol("indexed property set new");
+const indexedSetExisting = Symbol("indexed property set existing");
+const namedGet = Symbol("named property get");
+const namedSetNew = Symbol("named property set new");
+const namedSetExisting = Symbol("named property set existing");
+const namedDelete = Symbol("named property delete");
+
+const asyncIteratorNext = Symbol("async iterator get the next iteration result");
+const asyncIteratorReturn = Symbol("async iterator return steps");
+const asyncIteratorInit = Symbol("async iterator initialization steps");
+const asyncIteratorEOI = Symbol("async iterator end of iteration");
+
+module.exports = exports = {
+  isObject,
+  hasOwn,
+  define,
+  newObjectInRealm,
+  wrapperSymbol,
+  implSymbol,
+  getSameObject,
+  ctorRegistrySymbol,
+  initCtorRegistry,
+  wrapperForImpl,
+  implForWrapper,
+  tryWrapperForImpl,
+  tryImplForWrapper,
+  iterInternalSymbol,
+  isArrayBuffer,
+  isArrayIndexPropName,
+  supportsPropertyIndex,
+  supportedPropertyIndices,
+  supportsPropertyName,
+  supportedPropertyNames,
+  indexedGet,
+  indexedSetNew,
+  indexedSetExisting,
+  namedGet,
+  namedSetNew,
+  namedSetExisting,
+  namedDelete,
+  asyncIteratorNext,
+  asyncIteratorReturn,
+  asyncIteratorInit,
+  asyncIteratorEOI,
+  iteratorResult
 };
-
-/**
- * Create an ETag generator function, generating ETags with
- * the given options.
- *
- * @param {object} options
- * @return {function}
- * @private
- */
-
-function createETagGenerator (options) {
-  return function generateETag (body, encoding) {
-    var buf = !Buffer.isBuffer(body)
-      ? Buffer.from(body, encoding)
-      : body
-
-    return etag(buf, options)
-  }
-}
-
-/**
- * Parse an extended query string with qs.
- *
- * @param {String} str
- * @return {Object}
- * @private
- */
-
-function parseExtendedQueryString(str) {
-  return qs.parse(str, {
-    allowPrototypes: true
-  });
-}
-
-/**
- * Return new empty object.
- *
- * @return {Object}
- * @api private
- */
-
-function newObject() {
-  return {};
-}

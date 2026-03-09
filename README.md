@@ -1,121 +1,106 @@
-# minimist <sup>[![Version Badge][npm-version-svg]][package-url]</sup>
+﻿# whatwg-url
 
-[![github actions][actions-image]][actions-url]
-[![coverage][codecov-image]][codecov-url]
-[![License][license-image]][license-url]
-[![Downloads][downloads-image]][downloads-url]
+whatwg-url is a full implementation of the WHATWG [URL Standard](https://url.spec.whatwg.org/). It can be used standalone, but it also exposes a lot of the internal algorithms that are useful for integrating a URL parser into a project like [jsdom](https://github.com/jsdom/jsdom).
 
-[![npm badge][npm-badge-png]][package-url]
+## Specification conformance
 
-parse argument options
+whatwg-url is currently up to date with the URL spec up to commit [6c78200](https://github.com/whatwg/url/commit/6c782003a2d53b1feecd072d1006eb8f1d65fb2d).
 
-This module is the guts of optimist's argument parser without all the
-fanciful decoration.
+For `file:` URLs, whose [origin is left unspecified](https://url.spec.whatwg.org/#concept-url-origin), whatwg-url chooses to use a new opaque origin (which serializes to `"null"`).
 
-# example
+whatwg-url does not yet implement any encoding handling beyond UTF-8. That is, the _encoding override_ parameter does not exist in our API.
 
-``` js
-var argv = require('minimist')(process.argv.slice(2));
-console.log(argv);
-```
+## API
 
-```
-$ node example/parse.js -a beep -b boop
-{ _: [], a: 'beep', b: 'boop' }
-```
+### The `URL` and `URLSearchParams` classes
 
-```
-$ node example/parse.js -x 3 -y 4 -n5 -abc --beep=boop foo bar baz
-{
-	_: ['foo', 'bar', 'baz'],
-	x: 3,
-	y: 4,
-	n: 5,
-	a: true,
-	b: true,
-	c: true,
-	beep: 'boop'
-}
-```
+The main API is provided by the [`URL`](https://url.spec.whatwg.org/#url-class) and [`URLSearchParams`](https://url.spec.whatwg.org/#interface-urlsearchparams) exports, which follows the spec's behavior in all ways (including e.g. `USVString` conversion). Most consumers of this library will want to use these.
 
-# security
+### Low-level URL Standard API
 
-Previous versions had a prototype pollution bug that could cause privilege
-escalation in some circumstances when handling untrusted user input.
+The following methods are exported for use by places like jsdom that need to implement things like [`HTMLHyperlinkElementUtils`](https://html.spec.whatwg.org/#htmlhyperlinkelementutils). They mostly operate on or return an "internal URL" or ["URL record"](https://url.spec.whatwg.org/#concept-url) type.
 
-Please use version 1.2.6 or later:
+- [URL parser](https://url.spec.whatwg.org/#concept-url-parser): `parseURL(input, { baseURL })`
+- [Basic URL parser](https://url.spec.whatwg.org/#concept-basic-url-parser): `basicURLParse(input, { baseURL, url, stateOverride })`
+- [URL serializer](https://url.spec.whatwg.org/#concept-url-serializer): `serializeURL(urlRecord, excludeFragment)`
+- [Host serializer](https://url.spec.whatwg.org/#concept-host-serializer): `serializeHost(hostFromURLRecord)`
+- [URL path serializer](https://url.spec.whatwg.org/#url-path-serializer): `serializePath(urlRecord)`
+- [Serialize an integer](https://url.spec.whatwg.org/#serialize-an-integer): `serializeInteger(number)`
+- [Origin](https://url.spec.whatwg.org/#concept-url-origin) [serializer](https://html.spec.whatwg.org/multipage/origin.html#ascii-serialisation-of-an-origin): `serializeURLOrigin(urlRecord)`
+- [Set the username](https://url.spec.whatwg.org/#set-the-username): `setTheUsername(urlRecord, usernameString)`
+- [Set the password](https://url.spec.whatwg.org/#set-the-password): `setThePassword(urlRecord, passwordString)`
+- [Has an opaque path](https://url.spec.whatwg.org/#url-opaque-path): `hasAnOpaquePath(urlRecord)`
+- [Cannot have a username/password/port](https://url.spec.whatwg.org/#cannot-have-a-username-password-port): `cannotHaveAUsernamePasswordPort(urlRecord)`
+- [Percent decode bytes](https://url.spec.whatwg.org/#percent-decode): `percentDecodeBytes(uint8Array)`
+- [Percent decode a string](https://url.spec.whatwg.org/#string-percent-decode): `percentDecodeString(string)`
 
-* https://security.snyk.io/vuln/SNYK-JS-MINIMIST-2429795 (version <=1.2.5)
-* https://snyk.io/vuln/SNYK-JS-MINIMIST-559764 (version <=1.2.3)
+The `stateOverride` parameter is one of the following strings:
 
-# methods
+- [`"scheme start"`](https://url.spec.whatwg.org/#scheme-start-state)
+- [`"scheme"`](https://url.spec.whatwg.org/#scheme-state)
+- [`"no scheme"`](https://url.spec.whatwg.org/#no-scheme-state)
+- [`"special relative or authority"`](https://url.spec.whatwg.org/#special-relative-or-authority-state)
+- [`"path or authority"`](https://url.spec.whatwg.org/#path-or-authority-state)
+- [`"relative"`](https://url.spec.whatwg.org/#relative-state)
+- [`"relative slash"`](https://url.spec.whatwg.org/#relative-slash-state)
+- [`"special authority slashes"`](https://url.spec.whatwg.org/#special-authority-slashes-state)
+- [`"special authority ignore slashes"`](https://url.spec.whatwg.org/#special-authority-ignore-slashes-state)
+- [`"authority"`](https://url.spec.whatwg.org/#authority-state)
+- [`"host"`](https://url.spec.whatwg.org/#host-state)
+- [`"hostname"`](https://url.spec.whatwg.org/#hostname-state)
+- [`"port"`](https://url.spec.whatwg.org/#port-state)
+- [`"file"`](https://url.spec.whatwg.org/#file-state)
+- [`"file slash"`](https://url.spec.whatwg.org/#file-slash-state)
+- [`"file host"`](https://url.spec.whatwg.org/#file-host-state)
+- [`"path start"`](https://url.spec.whatwg.org/#path-start-state)
+- [`"path"`](https://url.spec.whatwg.org/#path-state)
+- [`"opaque path"`](https://url.spec.whatwg.org/#cannot-be-a-base-url-path-state)
+- [`"query"`](https://url.spec.whatwg.org/#query-state)
+- [`"fragment"`](https://url.spec.whatwg.org/#fragment-state)
 
-``` js
-var parseArgs = require('minimist')
-```
+The URL record type has the following API:
 
-## var argv = parseArgs(args, opts={})
+- [`scheme`](https://url.spec.whatwg.org/#concept-url-scheme)
+- [`username`](https://url.spec.whatwg.org/#concept-url-username)
+- [`password`](https://url.spec.whatwg.org/#concept-url-password)
+- [`host`](https://url.spec.whatwg.org/#concept-url-host)
+- [`port`](https://url.spec.whatwg.org/#concept-url-port)
+- [`path`](https://url.spec.whatwg.org/#concept-url-path) (as an array of strings, or a string)
+- [`query`](https://url.spec.whatwg.org/#concept-url-query)
+- [`fragment`](https://url.spec.whatwg.org/#concept-url-fragment)
 
-Return an argument object `argv` populated with the array arguments from `args`.
+These properties should be treated with care, as in general changing them will cause the URL record to be in an inconsistent state until the appropriate invocation of `basicURLParse` is used to fix it up. You can see examples of this in the URL Standard, where there are many step sequences like "4. Set context object’s url’s fragment to the empty string. 5. Basic URL parse _input_ with context object’s url as _url_ and fragment state as _state override_." In between those two steps, a URL record is in an unusable state.
 
-`argv._` contains all the arguments that didn't have an option associated with
-them.
+The return value of "failure" in the spec is represented by `null`. That is, functions like `parseURL` and `basicURLParse` can return _either_ a URL record _or_ `null`.
 
-Numeric-looking arguments will be returned as numbers unless `opts.string` or
-`opts.boolean` is set for that argument name.
+### `whatwg-url/webidl2js-wrapper` module
 
-Any arguments after `'--'` will not be parsed and will end up in `argv._`.
+This module exports the `URL` and `URLSearchParams` [interface wrappers API](https://github.com/jsdom/webidl2js#for-interfaces) generated by [webidl2js](https://github.com/jsdom/webidl2js).
 
-options can be:
+## Development instructions
 
-* `opts.string` - a string or array of strings argument names to always treat as
-strings
-* `opts.boolean` - a boolean, string or array of strings to always treat as
-booleans. if `true` will treat all double hyphenated arguments without equal signs
-as boolean (e.g. affects `--foo`, not `-f` or `--foo=bar`)
-* `opts.alias` - an object mapping string names to strings or arrays of string
-argument names to use as aliases
-* `opts.default` - an object mapping string argument names to default values
-* `opts.stopEarly` - when true, populate `argv._` with everything after the
-first non-option
-* `opts['--']` - when true, populate `argv._` with everything before the `--`
-and `argv['--']` with everything after the `--`. Here's an example:
+First, install [Node.js](https://nodejs.org/). Then, fetch the dependencies of whatwg-url, by running from this directory:
 
-  ```
-  > require('./')('one two three -- four five --six'.split(' '), { '--': true })
-  {
-    _: ['one', 'two', 'three'],
-    '--': ['four', 'five', '--six']
-  }
-  ```
+    npm install
 
-  Note that with `opts['--']` set, parsing for arguments still stops after the
-  `--`.
+To run tests:
 
-* `opts.unknown` - a function which is invoked with a command line parameter not
-defined in the `opts` configuration object. If the function returns `false`, the
-unknown option is not added to `argv`.
+    npm test
 
-# install
+To generate a coverage report:
 
-With [npm](https://npmjs.org) do:
+    npm run coverage
 
-```
-npm install minimist
-```
+To build and run the live viewer:
 
-# license
+    npm run prepare
+    npm run build-live-viewer
 
-MIT
+Serve the contents of the `live-viewer` directory using any web server.
 
-[package-url]: https://npmjs.org/package/minimist
-[npm-version-svg]: https://versionbadg.es/minimistjs/minimist.svg
-[npm-badge-png]: https://nodei.co/npm/minimist.png?downloads=true&stars=true
-[license-image]: https://img.shields.io/npm/l/minimist.svg
-[license-url]: LICENSE
-[downloads-image]: https://img.shields.io/npm/dm/minimist.svg
-[downloads-url]: https://npm-stat.com/charts.html?package=minimist
-[codecov-image]: https://codecov.io/gh/minimistjs/minimist/branch/main/graphs/badge.svg
-[codecov-url]: https://app.codecov.io/gh/minimistjs/minimist/
-[actions-image]: https://img.shields.io/endpoint?url=https://github-actions-badge-u3jn4tfpocch.runkit.sh/minimistjs/minimist
-[actions-url]: https://github.com/minimistjs/minimist/actions
+## Supporting whatwg-url
+
+The jsdom project (including whatwg-url) is a community-driven project maintained by a team of [volunteers](https://github.com/orgs/jsdom/people). You could support us by:
+
+- [Getting professional support for whatwg-url](https://tidelift.com/subscription/pkg/npm-whatwg-url?utm_source=npm-whatwg-url&utm_medium=referral&utm_campaign=readme) as part of a Tidelift subscription. Tidelift helps making open source sustainable for us while giving teams assurances for maintenance, licensing, and security.
+- Contributing directly to the project.
