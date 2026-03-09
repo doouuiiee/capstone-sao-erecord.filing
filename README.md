@@ -1,396 +1,286 @@
-# jsonwebtoken
+# long.js
 
-| **Build**                                                                                                                               | **Dependency**                                                                                                         |
-|-----------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------|
-| [![Build Status](https://secure.travis-ci.org/auth0/node-jsonwebtoken.svg?branch=master)](http://travis-ci.org/auth0/node-jsonwebtoken) | [![Dependency Status](https://david-dm.org/auth0/node-jsonwebtoken.svg)](https://david-dm.org/auth0/node-jsonwebtoken) |
+A Long class for representing a 64 bit two's-complement integer value derived from the [Closure Library](https://github.com/google/closure-library)
+for stand-alone use and extended with unsigned support.
 
+[![Build Status](https://img.shields.io/github/actions/workflow/status/dcodeIO/long.js/test.yml?branch=main&label=test&logo=github)](https://github.com/dcodeIO/long.js/actions/workflows/test.yml) [![Publish Status](https://img.shields.io/github/actions/workflow/status/dcodeIO/long.js/publish.yml?branch=main&label=publish&logo=github)](https://github.com/dcodeIO/long.js/actions/workflows/publish.yml) [![npm](https://img.shields.io/npm/v/long.svg?label=npm&color=007acc&logo=npm)](https://www.npmjs.com/package/long)
 
-An implementation of [JSON Web Tokens](https://tools.ietf.org/html/rfc7519).
+## Background
 
-This was developed against `draft-ietf-oauth-json-web-token-08`. It makes use of [node-jws](https://github.com/brianloveswords/node-jws)
+As of [ECMA-262 5th Edition](http://ecma262-5.com/ELS5_HTML.htm#Section_8.5), "all the positive and negative integers
+whose magnitude is no greater than 2<sup>53</sup> are representable in the Number type", which is "representing the
+doubleprecision 64-bit format IEEE 754 values as specified in the IEEE Standard for Binary Floating-Point Arithmetic".
+The [maximum safe integer](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/MAX_SAFE_INTEGER)
+in JavaScript is 2<sup>53</sup>-1.
 
-# Install
+Example: 2<sup>64</sup>-1 is 1844674407370955**1615** but in JavaScript it evaluates to 1844674407370955**2000**.
 
-```bash
-$ npm install jsonwebtoken
+Furthermore, bitwise operators in JavaScript "deal only with integers in the range −2<sup>31</sup> through
+2<sup>31</sup>−1, inclusive, or in the range 0 through 2<sup>32</sup>−1, inclusive. These operators accept any value of
+the Number type but first convert each such value to one of 2<sup>32</sup> integer values."
+
+In some use cases, however, it is required to be able to reliably work with and perform bitwise operations on the full
+64 bits. This is where long.js comes into play.
+
+## Usage
+
+The package exports an ECMAScript module with an UMD fallback.
+
 ```
-
-# Migration notes
-
-* [From v8 to v9](https://github.com/auth0/node-jsonwebtoken/wiki/Migration-Notes:-v8-to-v9)
-* [From v7 to v8](https://github.com/auth0/node-jsonwebtoken/wiki/Migration-Notes:-v7-to-v8)
-
-# Usage
-
-### jwt.sign(payload, secretOrPrivateKey, [options, callback])
-
-(Asynchronous) If a callback is supplied, the callback is called with the `err` or the JWT.
-
-(Synchronous) Returns the JsonWebToken as string
-
-`payload` could be an object literal, buffer or string representing valid JSON. 
-> **Please _note_ that** `exp` or any other claim is only set if the payload is an object literal. Buffer or string payloads are not checked for JSON validity.
-
-> If `payload` is not a buffer or a string, it will be coerced into a string using `JSON.stringify`.
-
-`secretOrPrivateKey` is a string (utf-8 encoded), buffer, object, or KeyObject containing either the secret for HMAC algorithms or the PEM
-encoded private key for RSA and ECDSA. In case of a private key with passphrase an object `{ key, passphrase }` can be used (based on [crypto documentation](https://nodejs.org/api/crypto.html#crypto_sign_sign_private_key_output_format)), in this case be sure you pass the `algorithm` option.
-When signing with RSA algorithms the minimum modulus length is 2048 except when the allowInsecureKeySizes option is set to true. Private keys below this size will be rejected with an error.
-
-`options`:
-
-* `algorithm` (default: `HS256`)
-* `expiresIn`: expressed in seconds or a string describing a time span [vercel/ms](https://github.com/vercel/ms). 
-  > Eg: `60`, `"2 days"`, `"10h"`, `"7d"`. A numeric value is interpreted as a seconds count. If you use a string be sure you provide the time units (days, hours, etc), otherwise milliseconds unit is used by default (`"120"` is equal to `"120ms"`).
-* `notBefore`: expressed in seconds or a string describing a time span [vercel/ms](https://github.com/vercel/ms). 
-  > Eg: `60`, `"2 days"`, `"10h"`, `"7d"`. A numeric value is interpreted as a seconds count. If you use a string be sure you provide the time units (days, hours, etc), otherwise milliseconds unit is used by default (`"120"` is equal to `"120ms"`).
-* `audience`
-* `issuer`
-* `jwtid`
-* `subject`
-* `noTimestamp`
-* `header`
-* `keyid`
-* `mutatePayload`: if true, the sign function will modify the payload object directly. This is useful if you need a raw reference to the payload after claims have been applied to it but before it has been encoded into a token.
-* `allowInsecureKeySizes`: if true allows private keys with a modulus below 2048 to be used for RSA
-* `allowInvalidAsymmetricKeyTypes`: if true, allows asymmetric keys which do not match the specified algorithm. This option is intended only for backwards compatability and should be avoided.
-
-
-
-> There are no default values for `expiresIn`, `notBefore`, `audience`, `subject`, `issuer`.  These claims can also be provided in the payload directly with `exp`, `nbf`, `aud`, `sub` and `iss` respectively, but you **_can't_** include in both places.
-
-Remember that `exp`, `nbf` and `iat` are **NumericDate**, see related [Token Expiration (exp claim)](#token-expiration-exp-claim)
-
-
-The header can be customized via the `options.header` object.
-
-Generated jwts will include an `iat` (issued at) claim by default unless `noTimestamp` is specified. If `iat` is inserted in the payload, it will be used instead of the real timestamp for calculating other things like `exp` given a timespan in `options.expiresIn`.
-
-Synchronous Sign with default (HMAC SHA256)
+$> npm install long
+```
 
 ```js
-var jwt = require('jsonwebtoken');
-var token = jwt.sign({ foo: 'bar' }, 'shhhhh');
+import Long from "long";
+
+var value = new Long(0xFFFFFFFF, 0x7FFFFFFF);
+console.log(value.toString());
+...
 ```
 
-Synchronous Sign with RSA SHA256
-```js
-// sign with RSA SHA256
-var privateKey = fs.readFileSync('private.key');
-var token = jwt.sign({ foo: 'bar' }, privateKey, { algorithm: 'RS256' });
+Note that mixing ESM and CommonJS is not recommended as it yields different classes, albeit with the same functionality.
+
+### Usage with a CDN
+
+- From GitHub via [jsDelivr](https://www.jsdelivr.com):<br />
+  `https://cdn.jsdelivr.net/gh/dcodeIO/long.js@TAG/index.js` (ESM)
+- From npm via [jsDelivr](https://www.jsdelivr.com):<br />
+  `https://cdn.jsdelivr.net/npm/long@VERSION/index.js` (ESM)<br />
+  `https://cdn.jsdelivr.net/npm/long@VERSION/umd/index.js` (UMD)
+- From npm via [unpkg](https://unpkg.com):<br />
+  `https://unpkg.com/long@VERSION/index.js` (ESM)<br />
+  `https://unpkg.com/long@VERSION/umd/index.js` (UMD)
+
+Replace `TAG` respectively `VERSION` with a [specific version](https://github.com/dcodeIO/long.js/releases) or omit it (not recommended in production) to use main/latest.
+
+## API
+
+### Constructor
+
+- new **Long**(low: `number`, high?: `number`, unsigned?: `boolean`)<br />
+  Constructs a 64 bit two's-complement integer, given its low and high 32 bit values as _signed_ integers. See the from\* functions below for more convenient ways of constructing Longs.
+
+### Fields
+
+- Long#**low**: `number`<br />
+  The low 32 bits as a signed value.
+
+- Long#**high**: `number`<br />
+  The high 32 bits as a signed value.
+
+- Long#**unsigned**: `boolean`<br />
+  Whether unsigned or not.
+
+### Constants
+
+- Long.**ZERO**: `Long`<br />
+  Signed zero.
+
+- Long.**ONE**: `Long`<br />
+  Signed one.
+
+- Long.**NEG_ONE**: `Long`<br />
+  Signed negative one.
+
+- Long.**UZERO**: `Long`<br />
+  Unsigned zero.
+
+- Long.**UONE**: `Long`<br />
+  Unsigned one.
+
+- Long.**MAX_VALUE**: `Long`<br />
+  Maximum signed value.
+
+- Long.**MIN_VALUE**: `Long`<br />
+  Minimum signed value.
+
+- Long.**MAX_UNSIGNED_VALUE**: `Long`<br />
+  Maximum unsigned value.
+
+### Utility
+
+- type **LongLike**: `Long | number | bigint | string`<br />
+  Any value or object that either is or can be converted to a Long.
+
+- Long.**isLong**(obj: `any`): `boolean`<br />
+  Tests if the specified object is a Long.
+
+- Long.**fromBits**(lowBits: `number`, highBits: `number`, unsigned?: `boolean`): `Long`<br />
+  Returns a Long representing the 64 bit integer that comes by concatenating the given low and high bits. Each is assumed to use 32 bits.
+
+- Long.**fromBytes**(bytes: `number[]`, unsigned?: `boolean`, le?: `boolean`): `Long`<br />
+  Creates a Long from its byte representation.
+
+- Long.**fromBytesLE**(bytes: `number[]`, unsigned?: `boolean`): `Long`<br />
+  Creates a Long from its little endian byte representation.
+
+- Long.**fromBytesBE**(bytes: `number[]`, unsigned?: `boolean`): `Long`<br />
+  Creates a Long from its big endian byte representation.
+
+- Long.**fromInt**(value: `number`, unsigned?: `boolean`): `Long`<br />
+  Returns a Long representing the given 32 bit integer value.
+
+- Long.**fromNumber**(value: `number`, unsigned?: `boolean`): `Long`<br />
+  Returns a Long representing the given value, provided that it is a finite number. Otherwise, zero is returned.
+
+- Long.**fromBigInt**(value: `bigint`, unsigned?: `boolean`): `Long`<br />
+  Returns a Long representing the given big integer.
+
+- Long.**fromString**(str: `string`, unsigned?: `boolean`, radix?: `number`)<br />
+  Long.**fromString**(str: `string`, radix: `number`)<br />
+  Returns a Long representation of the given string, written using the specified radix.
+
+- Long.**fromValue**(val: `LongLike`, unsigned?: `boolean`): `Long`<br />
+  Converts the specified value to a Long using the appropriate from\* function for its type.
+
+### Methods
+
+- Long#**add**(addend: `LongLike`): `Long`<br />
+  Returns the sum of this and the specified Long.
+
+- Long#**and**(other: `LongLike`): `Long`<br />
+  Returns the bitwise AND of this Long and the specified.
+
+- Long#**compare**/**comp**(other: `LongLike`): `number`<br />
+  Compares this Long's value with the specified's. Returns `0` if they are the same, `1` if the this is greater and `-1` if the given one is greater.
+
+- Long#**divide**/**div**(divisor: `LongLike`): `Long`<br />
+  Returns this Long divided by the specified.
+
+- Long#**equals**/**eq**(other: `LongLike`): `boolean`<br />
+  Tests if this Long's value equals the specified's.
+
+- Long#**getHighBits**(): `number`<br />
+  Gets the high 32 bits as a signed integer.
+
+- Long#**getHighBitsUnsigned**(): `number`<br />
+  Gets the high 32 bits as an unsigned integer.
+
+- Long#**getLowBits**(): `number`<br />
+  Gets the low 32 bits as a signed integer.
+
+- Long#**getLowBitsUnsigned**(): `number`<br />
+  Gets the low 32 bits as an unsigned integer.
+
+- Long#**getNumBitsAbs**(): `number`<br />
+  Gets the number of bits needed to represent the absolute value of this Long.
+
+- Long#**greaterThan**/**gt**(other: `LongLike`): `boolean`<br />
+  Tests if this Long's value is greater than the specified's.
+
+- Long#**greaterThanOrEqual**/**gte**/**ge**(other: `LongLike`): `boolean`<br />
+  Tests if this Long's value is greater than or equal the specified's.
+
+- Long#**isEven**(): `boolean`<br />
+  Tests if this Long's value is even.
+
+- Long#**isNegative**(): `boolean`<br />
+  Tests if this Long's value is negative.
+
+- Long#**isOdd**(): `boolean`<br />
+  Tests if this Long's value is odd.
+
+- Long#**isPositive**(): `boolean`<br />
+  Tests if this Long's value is positive or zero.
+
+- Long#**isSafeInteger**(): `boolean`<br />
+  Tests if this Long can be safely represented as a JavaScript number.
+
+- Long#**isZero**/**eqz**(): `boolean`<br />
+  Tests if this Long's value equals zero.
+
+- Long#**lessThan**/**lt**(other: `LongLike`): `boolean`<br />
+  Tests if this Long's value is less than the specified's.
+
+- Long#**lessThanOrEqual**/**lte**/**le**(other: `LongLike`): `boolean`<br />
+  Tests if this Long's value is less than or equal the specified's.
+
+- Long#**modulo**/**mod**/**rem**(divisor: `LongLike`): `Long`<br />
+  Returns this Long modulo the specified.
+
+- Long#**multiply**/**mul**(multiplier: `LongLike`): `Long`<br />
+  Returns the product of this and the specified Long.
+
+- Long#**negate**/**neg**(): `Long`<br />
+  Negates this Long's value.
+
+- Long#**not**(): `Long`<br />
+  Returns the bitwise NOT of this Long.
+
+- Long#**countLeadingZeros**/**clz**(): `number`<br />
+  Returns count leading zeros of this Long.
+
+- Long#**countTrailingZeros**/**ctz**(): `number`<br />
+  Returns count trailing zeros of this Long.
+
+- Long#**notEquals**/**neq**/**ne**(other: `LongLike`): `boolean`<br />
+  Tests if this Long's value differs from the specified's.
+
+- Long#**or**(other: `LongLike`): `Long`<br />
+  Returns the bitwise OR of this Long and the specified.
+
+- Long#**shiftLeft**/**shl**(numBits: `Long | number`): `Long`<br />
+  Returns this Long with bits shifted to the left by the given amount.
+
+- Long#**shiftRight**/**shr**(numBits: `Long | number`): `Long`<br />
+  Returns this Long with bits arithmetically shifted to the right by the given amount.
+
+- Long#**shiftRightUnsigned**/**shru**/**shr_u**(numBits: `Long | number`): `Long`<br />
+  Returns this Long with bits logically shifted to the right by the given amount.
+
+- Long#**rotateLeft**/**rotl**(numBits: `Long | number`): `Long`<br />
+  Returns this Long with bits rotated to the left by the given amount.
+
+- Long#**rotateRight**/**rotr**(numBits: `Long | number`): `Long`<br />
+  Returns this Long with bits rotated to the right by the given amount.
+
+- Long#**subtract**/**sub**(subtrahend: `LongLike`): `Long`<br />
+  Returns the difference of this and the specified Long.
+
+- Long#**toBytes**(le?: `boolean`): `number[]`<br />
+  Converts this Long to its byte representation.
+
+- Long#**toBytesLE**(): `number[]`<br />
+  Converts this Long to its little endian byte representation.
+
+- Long#**toBytesBE**(): `number[]`<br />
+  Converts this Long to its big endian byte representation.
+
+- Long#**toInt**(): `number`<br />
+  Converts the Long to a 32 bit integer, assuming it is a 32 bit integer.
+
+- Long#**toNumber**(): `number`<br />
+  Converts the Long to a the nearest floating-point representation of this value (double, 53 bit mantissa).
+
+- Long#**toBigInt**(): `bigint`<br />
+  Converts the Long to its big integer representation.
+
+- Long#**toSigned**(): `Long`<br />
+  Converts this Long to signed.
+
+- Long#**toString**(radix?: `number`): `string`<br />
+  Converts the Long to a string written in the specified radix.
+
+- Long#**toUnsigned**(): `Long`<br />
+  Converts this Long to unsigned.
+
+- Long#**xor**(other: `Long | number | string`): `Long`<br />
+  Returns the bitwise XOR of this Long and the given one.
+
+## WebAssembly support
+
+[WebAssembly](http://webassembly.org) supports 64-bit integer arithmetic out of the box, hence a [tiny WebAssembly module](./wasm.wat) is used to compute operations like multiplication, division and remainder more efficiently (slow operations like division are around twice as fast), falling back to floating point based computations in JavaScript where WebAssembly is not yet supported, e.g., in older versions of node.
+
+## Building
+
+Building the UMD fallback:
+
+```
+$> npm run build
 ```
 
-Sign asynchronously
-```js
-jwt.sign({ foo: 'bar' }, privateKey, { algorithm: 'RS256' }, function(err, token) {
-  console.log(token);
-});
-```
-
-Backdate a jwt 30 seconds
-```js
-var older_token = jwt.sign({ foo: 'bar', iat: Math.floor(Date.now() / 1000) - 30 }, 'shhhhh');
-```
-
-#### Token Expiration (exp claim)
-
-The standard for JWT defines an `exp` claim for expiration. The expiration is represented as a **NumericDate**:
-
-> A JSON numeric value representing the number of seconds from 1970-01-01T00:00:00Z UTC until the specified UTC date/time, ignoring leap seconds.  This is equivalent to the IEEE Std 1003.1, 2013 Edition [POSIX.1] definition "Seconds Since the Epoch", in which each day is accounted for by exactly 86400 seconds, other than that non-integer values can be represented.  See RFC 3339 [RFC3339] for details regarding date/times in general and UTC in particular.
-
-This means that the `exp` field should contain the number of seconds since the epoch.
-
-Signing a token with 1 hour of expiration:
-
-```javascript
-jwt.sign({
-  exp: Math.floor(Date.now() / 1000) + (60 * 60),
-  data: 'foobar'
-}, 'secret');
-```
-
-Another way to generate a token like this with this library is:
-
-```javascript
-jwt.sign({
-  data: 'foobar'
-}, 'secret', { expiresIn: 60 * 60 });
-
-//or even better:
-
-jwt.sign({
-  data: 'foobar'
-}, 'secret', { expiresIn: '1h' });
-```
-
-### jwt.verify(token, secretOrPublicKey, [options, callback])
-
-(Asynchronous) If a callback is supplied, function acts asynchronously. The callback is called with the decoded payload if the signature is valid and optional expiration, audience, or issuer are valid. If not, it will be called with the error.
-
-(Synchronous) If a callback is not supplied, function acts synchronously. Returns the payload decoded if the signature is valid and optional expiration, audience, or issuer are valid. If not, it will throw the error.
-
-> __Warning:__ When the token comes from an untrusted source (e.g. user input or external requests), the returned decoded payload should be treated like any other user input; please make sure to sanitize and only work with properties that are expected
-
-`token` is the JsonWebToken string
-
-`secretOrPublicKey` is a string (utf-8 encoded), buffer, or KeyObject containing either the secret for HMAC algorithms, or the PEM
-encoded public key for RSA and ECDSA.
-If `jwt.verify` is called asynchronous, `secretOrPublicKey` can be a function that should fetch the secret or public key. See below for a detailed example
-
-As mentioned in [this comment](https://github.com/auth0/node-jsonwebtoken/issues/208#issuecomment-231861138), there are other libraries that expect base64 encoded secrets (random bytes encoded using base64), if that is your case you can pass `Buffer.from(secret, 'base64')`, by doing this the secret will be decoded using base64 and the token verification will use the original random bytes.
-
-`options`
-
-* `algorithms`: List of strings with the names of the allowed algorithms. For instance, `["HS256", "HS384"]`. 
-  > If not specified a defaults will be used based on the type of key provided
-  > * secret - ['HS256', 'HS384', 'HS512']
-  > * rsa - ['RS256', 'RS384', 'RS512']
-  > * ec - ['ES256', 'ES384', 'ES512']
-  > * default - ['RS256', 'RS384', 'RS512']
-* `audience`: if you want to check audience (`aud`), provide a value here. The audience can be checked against a string, a regular expression or a list of strings and/or regular expressions. 
-  > Eg: `"urn:foo"`, `/urn:f[o]{2}/`, `[/urn:f[o]{2}/, "urn:bar"]`
-* `complete`: return an object with the decoded `{ payload, header, signature }` instead of only the usual content of the payload.
-* `issuer` (optional): string or array of strings of valid values for the `iss` field.
-* `jwtid` (optional): if you want to check JWT ID (`jti`), provide a string value here.
-* `ignoreExpiration`: if `true` do not validate the expiration of the token.
-* `ignoreNotBefore`...
-* `subject`: if you want to check subject (`sub`), provide a value here
-* `clockTolerance`: number of seconds to tolerate when checking the `nbf` and `exp` claims, to deal with small clock differences among different servers
-* `maxAge`: the maximum allowed age for tokens to still be valid. It is expressed in seconds or a string describing a time span [vercel/ms](https://github.com/vercel/ms). 
-  > Eg: `1000`, `"2 days"`, `"10h"`, `"7d"`. A numeric value is interpreted as a seconds count. If you use a string be sure you provide the time units (days, hours, etc), otherwise milliseconds unit is used by default (`"120"` is equal to `"120ms"`).
-* `clockTimestamp`: the time in seconds that should be used as the current time for all necessary comparisons.
-* `nonce`: if you want to check `nonce` claim, provide a string value here. It is used on Open ID for the ID Tokens. ([Open ID implementation notes](https://openid.net/specs/openid-connect-core-1_0.html#NonceNotes))
-* `allowInvalidAsymmetricKeyTypes`: if true, allows asymmetric keys which do not match the specified algorithm. This option is intended only for backwards compatability and should be avoided.
-
-```js
-// verify a token symmetric - synchronous
-var decoded = jwt.verify(token, 'shhhhh');
-console.log(decoded.foo) // bar
-
-// verify a token symmetric
-jwt.verify(token, 'shhhhh', function(err, decoded) {
-  console.log(decoded.foo) // bar
-});
-
-// invalid token - synchronous
-try {
-  var decoded = jwt.verify(token, 'wrong-secret');
-} catch(err) {
-  // err
-}
-
-// invalid token
-jwt.verify(token, 'wrong-secret', function(err, decoded) {
-  // err
-  // decoded undefined
-});
-
-// verify a token asymmetric
-var cert = fs.readFileSync('public.pem');  // get public key
-jwt.verify(token, cert, function(err, decoded) {
-  console.log(decoded.foo) // bar
-});
-
-// verify audience
-var cert = fs.readFileSync('public.pem');  // get public key
-jwt.verify(token, cert, { audience: 'urn:foo' }, function(err, decoded) {
-  // if audience mismatch, err == invalid audience
-});
-
-// verify issuer
-var cert = fs.readFileSync('public.pem');  // get public key
-jwt.verify(token, cert, { audience: 'urn:foo', issuer: 'urn:issuer' }, function(err, decoded) {
-  // if issuer mismatch, err == invalid issuer
-});
-
-// verify jwt id
-var cert = fs.readFileSync('public.pem');  // get public key
-jwt.verify(token, cert, { audience: 'urn:foo', issuer: 'urn:issuer', jwtid: 'jwtid' }, function(err, decoded) {
-  // if jwt id mismatch, err == invalid jwt id
-});
-
-// verify subject
-var cert = fs.readFileSync('public.pem');  // get public key
-jwt.verify(token, cert, { audience: 'urn:foo', issuer: 'urn:issuer', jwtid: 'jwtid', subject: 'subject' }, function(err, decoded) {
-  // if subject mismatch, err == invalid subject
-});
-
-// alg mismatch
-var cert = fs.readFileSync('public.pem'); // get public key
-jwt.verify(token, cert, { algorithms: ['RS256'] }, function (err, payload) {
-  // if token alg != RS256,  err == invalid signature
-});
-
-// Verify using getKey callback
-// Example uses https://github.com/auth0/node-jwks-rsa as a way to fetch the keys.
-var jwksClient = require('jwks-rsa');
-var client = jwksClient({
-  jwksUri: 'https://sandrino.auth0.com/.well-known/jwks.json'
-});
-function getKey(header, callback){
-  client.getSigningKey(header.kid, function(err, key) {
-    var signingKey = key.publicKey || key.rsaPublicKey;
-    callback(null, signingKey);
-  });
-}
-
-jwt.verify(token, getKey, options, function(err, decoded) {
-  console.log(decoded.foo) // bar
-});
+Running the [tests](./tests):
 
 ```
-
-<details>
-<summary><em></em>Need to peek into a JWT without verifying it? (Click to expand)</summary>
-
-### jwt.decode(token [, options])
-
-(Synchronous) Returns the decoded payload without verifying if the signature is valid.
-
-> __Warning:__ This will __not__ verify whether the signature is valid. You should __not__ use this for untrusted messages. You most likely want to use `jwt.verify` instead.
-
-> __Warning:__ When the token comes from an untrusted source (e.g. user input or external request), the returned decoded payload should be treated like any other user input; please make sure to sanitize and only work with properties that are expected
-
-
-`token` is the JsonWebToken string
-
-`options`:
-
-* `json`: force JSON.parse on the payload even if the header doesn't contain `"typ":"JWT"`.
-* `complete`: return an object with the decoded payload and header.
-
-Example
-
-```js
-// get the decoded payload ignoring signature, no secretOrPrivateKey needed
-var decoded = jwt.decode(token);
-
-// get the decoded payload and header
-var decoded = jwt.decode(token, {complete: true});
-console.log(decoded.header);
-console.log(decoded.payload)
+$> npm test
 ```
-
-</details>
-
-## Errors & Codes
-Possible thrown errors during verification.
-Error is the first argument of the verification callback.
-
-### TokenExpiredError
-
-Thrown error if the token is expired.
-
-Error object:
-
-* name: 'TokenExpiredError'
-* message: 'jwt expired'
-* expiredAt: [ExpDate]
-
-```js
-jwt.verify(token, 'shhhhh', function(err, decoded) {
-  if (err) {
-    /*
-      err = {
-        name: 'TokenExpiredError',
-        message: 'jwt expired',
-        expiredAt: 1408621000
-      }
-    */
-  }
-});
-```
-
-### JsonWebTokenError
-Error object:
-
-* name: 'JsonWebTokenError'
-* message:
-  * 'invalid token' - the header or payload could not be parsed
-  * 'jwt malformed' - the token does not have three components (delimited by a `.`)
-  * 'jwt signature is required'
-  * 'invalid signature'
-  * 'jwt audience invalid. expected: [OPTIONS AUDIENCE]'
-  * 'jwt issuer invalid. expected: [OPTIONS ISSUER]'
-  * 'jwt id invalid. expected: [OPTIONS JWT ID]'
-  * 'jwt subject invalid. expected: [OPTIONS SUBJECT]'
-
-```js
-jwt.verify(token, 'shhhhh', function(err, decoded) {
-  if (err) {
-    /*
-      err = {
-        name: 'JsonWebTokenError',
-        message: 'jwt malformed'
-      }
-    */
-  }
-});
-```
-
-### NotBeforeError
-Thrown if current time is before the nbf claim.
-
-Error object:
-
-* name: 'NotBeforeError'
-* message: 'jwt not active'
-* date: 2018-10-04T16:10:44.000Z
-
-```js
-jwt.verify(token, 'shhhhh', function(err, decoded) {
-  if (err) {
-    /*
-      err = {
-        name: 'NotBeforeError',
-        message: 'jwt not active',
-        date: 2018-10-04T16:10:44.000Z
-      }
-    */
-  }
-});
-```
-
-
-## Algorithms supported
-
-Array of supported algorithms. The following algorithms are currently supported.
-
-| alg Parameter Value | Digital Signature or MAC Algorithm                                     |
-|---------------------|------------------------------------------------------------------------|
-| HS256               | HMAC using SHA-256 hash algorithm                                      |
-| HS384               | HMAC using SHA-384 hash algorithm                                      |
-| HS512               | HMAC using SHA-512 hash algorithm                                      |
-| RS256               | RSASSA-PKCS1-v1_5 using SHA-256 hash algorithm                         |
-| RS384               | RSASSA-PKCS1-v1_5 using SHA-384 hash algorithm                         |
-| RS512               | RSASSA-PKCS1-v1_5 using SHA-512 hash algorithm                         |
-| PS256               | RSASSA-PSS using SHA-256 hash algorithm (only node ^6.12.0 OR >=8.0.0) |
-| PS384               | RSASSA-PSS using SHA-384 hash algorithm (only node ^6.12.0 OR >=8.0.0) |
-| PS512               | RSASSA-PSS using SHA-512 hash algorithm (only node ^6.12.0 OR >=8.0.0) |
-| ES256               | ECDSA using P-256 curve and SHA-256 hash algorithm                     |
-| ES384               | ECDSA using P-384 curve and SHA-384 hash algorithm                     |
-| ES512               | ECDSA using P-521 curve and SHA-512 hash algorithm                     |
-| none                | No digital signature or MAC value included                             |
-
-## Refreshing JWTs
-
-First of all, we recommend you to think carefully if auto-refreshing a JWT will not introduce any vulnerability in your system.
-
-We are not comfortable including this as part of the library, however, you can take a look at [this example](https://gist.github.com/ziluvatar/a3feb505c4c0ec37059054537b38fc48) to show how this could be accomplished.
-Apart from that example there are [an issue](https://github.com/auth0/node-jsonwebtoken/issues/122) and [a pull request](https://github.com/auth0/node-jsonwebtoken/pull/172) to get more knowledge about this topic.
-
-# TODO
-
-* X.509 certificate chain is not checked
-
-## Issue Reporting
-
-If you have found a bug or if you have a feature request, please report them at this repository issues section. Please do not report security vulnerabilities on the public GitHub issue tracker. The [Responsible Disclosure Program](https://auth0.com/whitehat) details the procedure for disclosing security issues.
-
-## Author
-
-[Auth0](https://auth0.com)
-
-## License
-
-This project is licensed under the MIT license. See the [LICENSE](LICENSE) file for more info.
