@@ -1,14 +1,9 @@
-// Copyright 2017 Lovell Fuller and others.
-// SPDX-License-Identifier: Apache-2.0
-
-export const GLIBC: 'glibc';
-export const MUSL: 'musl';
-
-export function family(): Promise<string | null>;
-export function familySync(): string | null;
-
-export function isNonGlibcLinux(): Promise<boolean>;
-export function isNonGlibcLinuxSync(): boolean;
-
-export function version(): Promise<string | null>;
-export function versionSync(): string | null;
+import { encodePacket } from "./encodePacket.js";
+import { decodePacket } from "./decodePacket.js";
+import { Packet, PacketType, RawData, BinaryType } from "./commons.js";
+declare const encodePayload: (packets: Packet[], callback: (encodedPayload: string) => void) => void;
+declare const decodePayload: (encodedPayload: string, binaryType?: BinaryType) => Packet[];
+export declare function createPacketEncoderStream(): any;
+export declare function createPacketDecoderStream(maxPayload: number, binaryType: BinaryType): any;
+export declare const protocol = 4;
+export { encodePacket, encodePayload, decodePacket, decodePayload, Packet, PacketType, RawData, BinaryType, };
