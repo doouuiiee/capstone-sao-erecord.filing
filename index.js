@@ -1,160 +1,263 @@
-module.exports = Pager
+'use strict';
 
-function Pager (pageSize, opts) {
-  if (!(this instanceof Pager)) return new Pager(pageSize, opts)
+function hasKey(obj, keys) {
+	var o = obj;
+	keys.slice(0, -1).forEach(function (key) {
+		o = o[key] || {};
+	});
 
-  this.length = 0
-  this.updates = []
-  this.path = new Uint16Array(4)
-  this.pages = new Array(32768)
-  this.maxPages = this.pages.length
-  this.level = 0
-  this.pageSize = pageSize || 1024
-  this.deduplicate = opts ? opts.deduplicate : null
-  this.zeros = this.deduplicate ? alloc(this.deduplicate.length) : null
+	var key = keys[keys.length - 1];
+	return key in o;
 }
 
-Pager.prototype.updated = function (page) {
-  while (this.deduplicate && page.buffer[page.deduplicate] === this.deduplicate[page.deduplicate]) {
-    page.deduplicate++
-    if (page.deduplicate === this.deduplicate.length) {
-      page.deduplicate = 0
-      if (page.buffer.equals && page.buffer.equals(this.deduplicate)) page.buffer = this.deduplicate
-      break
-    }
-  }
-  if (page.updated || !this.updates) return
-  page.updated = true
-  this.updates.push(page)
+function isNumber(x) {
+	if (typeof x === 'number') { return true; }
+	if ((/^0x[0-9a-f]+$/i).test(x)) { return true; }
+	return (/^[-+]?(?:\d+(?:\.\d*)?|\.\d+)(e[-+]?\d+)?$/).test(x);
 }
 
-Pager.prototype.lastUpdate = function () {
-  if (!this.updates || !this.updates.length) return null
-  var page = this.updates.pop()
-  page.updated = false
-  return page
+function isConstructorOrProto(obj, key) {
+	return (key === 'constructor' && typeof obj[key] === 'function') || key === '__proto__';
 }
 
-Pager.prototype._array = function (i, noAllocate) {
-  if (i >= this.maxPages) {
-    if (noAllocate) return
-    grow(this, i)
-  }
+module.exports = function (args, opts) {
+	if (!opts) { opts = {}; }
 
-  factor(i, this.path)
+	var flags = {
+		bools: {},
+		strings: {},
+		unknownFn: null,
+	};
 
-  var arr = this.pages
+	if (typeof opts.unknown === 'function') {
+		flags.unknownFn = opts.unknown;
+	}
 
-  for (var j = this.level; j > 0; j--) {
-    var p = this.path[j]
-    var next = arr[p]
+	if (typeof opts.boolean === 'boolean' && opts.boolean) {
+		flags.allBools = true;
+	} else {
+		[].concat(opts.boolean).filter(Boolean).forEach(function (key) {
+			flags.bools[key] = true;
+		});
+	}
 
-    if (!next) {
-      if (noAllocate) return
-      next = arr[p] = new Array(32768)
-    }
+	var aliases = {};
 
-    arr = next
-  }
+	function aliasIsBoolean(key) {
+		return aliases[key].some(function (x) {
+			return flags.bools[x];
+		});
+	}
 
-  return arr
-}
+	Object.keys(opts.alias || {}).forEach(function (key) {
+		aliases[key] = [].concat(opts.alias[key]);
+		aliases[key].forEach(function (x) {
+			aliases[x] = [key].concat(aliases[key].filter(function (y) {
+				return x !== y;
+			}));
+		});
+	});
 
-Pager.prototype.get = function (i, noAllocate) {
-  var arr = this._array(i, noAllocate)
-  var first = this.path[0]
-  var page = arr && arr[first]
+	[].concat(opts.string).filter(Boolean).forEach(function (key) {
+		flags.strings[key] = true;
+		if (aliases[key]) {
+			[].concat(aliases[key]).forEach(function (k) {
+				flags.strings[k] = true;
+			});
+		}
+	});
 
-  if (!page && !noAllocate) {
-    page = arr[first] = new Page(i, alloc(this.pageSize))
-    if (i >= this.length) this.length = i + 1
-  }
+	var defaults = opts.default || {};
 
-  if (page && page.buffer === this.deduplicate && this.deduplicate && !noAllocate) {
-    page.buffer = copy(page.buffer)
-    page.deduplicate = 0
-  }
+	var argv = { _: [] };
 
-  return page
-}
+	function argDefined(key, arg) {
+		return (flags.allBools && (/^--[^=]+$/).test(arg))
+			|| flags.strings[key]
+			|| flags.bools[key]
+			|| aliases[key];
+	}
 
-Pager.prototype.set = function (i, buf) {
-  var arr = this._array(i, false)
-  var first = this.path[0]
+	function setKey(obj, keys, value) {
+		var o = obj;
+		for (var i = 0; i < keys.length - 1; i++) {
+			var key = keys[i];
+			if (isConstructorOrProto(o, key)) { return; }
+			if (o[key] === undefined) { o[key] = {}; }
+			if (
+				o[key] === Object.prototype
+				|| o[key] === Number.prototype
+				|| o[key] === String.prototype
+			) {
+				o[key] = {};
+			}
+			if (o[key] === Array.prototype) { o[key] = []; }
+			o = o[key];
+		}
 
-  if (i >= this.length) this.length = i + 1
+		var lastKey = keys[keys.length - 1];
+		if (isConstructorOrProto(o, lastKey)) { return; }
+		if (
+			o === Object.prototype
+			|| o === Number.prototype
+			|| o === String.prototype
+		) {
+			o = {};
+		}
+		if (o === Array.prototype) { o = []; }
+		if (o[lastKey] === undefined || flags.bools[lastKey] || typeof o[lastKey] === 'boolean') {
+			o[lastKey] = value;
+		} else if (Array.isArray(o[lastKey])) {
+			o[lastKey].push(value);
+		} else {
+			o[lastKey] = [o[lastKey], value];
+		}
+	}
 
-  if (!buf || (this.zeros && buf.equals && buf.equals(this.zeros))) {
-    arr[first] = undefined
-    return
-  }
+	function setArg(key, val, arg) {
+		if (arg && flags.unknownFn && !argDefined(key, arg)) {
+			if (flags.unknownFn(arg) === false) { return; }
+		}
 
-  if (this.deduplicate && buf.equals && buf.equals(this.deduplicate)) {
-    buf = this.deduplicate
-  }
+		var value = !flags.strings[key] && isNumber(val)
+			? Number(val)
+			: val;
+		setKey(argv, key.split('.'), value);
 
-  var page = arr[first]
-  var b = truncate(buf, this.pageSize)
+		(aliases[key] || []).forEach(function (x) {
+			setKey(argv, x.split('.'), value);
+		});
+	}
 
-  if (page) page.buffer = b
-  else arr[first] = new Page(i, b)
-}
+	Object.keys(flags.bools).forEach(function (key) {
+		setArg(key, defaults[key] === undefined ? false : defaults[key]);
+	});
 
-Pager.prototype.toBuffer = function () {
-  var list = new Array(this.length)
-  var empty = alloc(this.pageSize)
-  var ptr = 0
+	var notFlags = [];
 
-  while (ptr < list.length) {
-    var arr = this._array(ptr, true)
-    for (var i = 0; i < 32768 && ptr < list.length; i++) {
-      list[ptr++] = (arr && arr[i]) ? arr[i].buffer : empty
-    }
-  }
+	if (args.indexOf('--') !== -1) {
+		notFlags = args.slice(args.indexOf('--') + 1);
+		args = args.slice(0, args.indexOf('--'));
+	}
 
-  return Buffer.concat(list)
-}
+	for (var i = 0; i < args.length; i++) {
+		var arg = args[i];
+		var key;
+		var next;
 
-function grow (pager, index) {
-  while (pager.maxPages < index) {
-    var old = pager.pages
-    pager.pages = new Array(32768)
-    pager.pages[0] = old
-    pager.level++
-    pager.maxPages *= 32768
-  }
-}
+		if ((/^--.+=/).test(arg)) {
+			// Using [\s\S] instead of . because js doesn't support the
+			// 'dotall' regex modifier. See:
+			// http://stackoverflow.com/a/1068308/13216
+			var m = arg.match(/^--([^=]+)=([\s\S]*)$/);
+			key = m[1];
+			var value = m[2];
+			if (flags.bools[key]) {
+				value = value !== 'false';
+			}
+			setArg(key, value, arg);
+		} else if ((/^--no-.+/).test(arg)) {
+			key = arg.match(/^--no-(.+)/)[1];
+			setArg(key, false, arg);
+		} else if ((/^--.+/).test(arg)) {
+			key = arg.match(/^--(.+)/)[1];
+			next = args[i + 1];
+			if (
+				next !== undefined
+				&& !(/^(-|--)[^-]/).test(next)
+				&& !flags.bools[key]
+				&& !flags.allBools
+				&& (aliases[key] ? !aliasIsBoolean(key) : true)
+			) {
+				setArg(key, next, arg);
+				i += 1;
+			} else if ((/^(true|false)$/).test(next)) {
+				setArg(key, next === 'true', arg);
+				i += 1;
+			} else {
+				setArg(key, flags.strings[key] ? '' : true, arg);
+			}
+		} else if ((/^-[^-]+/).test(arg)) {
+			var letters = arg.slice(1, -1).split('');
 
-function truncate (buf, len) {
-  if (buf.length === len) return buf
-  if (buf.length > len) return buf.slice(0, len)
-  var cpy = alloc(len)
-  buf.copy(cpy)
-  return cpy
-}
+			var broken = false;
+			for (var j = 0; j < letters.length; j++) {
+				next = arg.slice(j + 2);
 
-function alloc (size) {
-  if (Buffer.alloc) return Buffer.alloc(size)
-  var buf = new Buffer(size)
-  buf.fill(0)
-  return buf
-}
+				if (next === '-') {
+					setArg(letters[j], next, arg);
+					continue;
+				}
 
-function copy (buf) {
-  var cpy = Buffer.allocUnsafe ? Buffer.allocUnsafe(buf.length) : new Buffer(buf.length)
-  buf.copy(cpy)
-  return cpy
-}
+				if ((/[A-Za-z]/).test(letters[j]) && next[0] === '=') {
+					setArg(letters[j], next.slice(1), arg);
+					broken = true;
+					break;
+				}
 
-function Page (i, buf) {
-  this.offset = i * buf.length
-  this.buffer = buf
-  this.updated = false
-  this.deduplicate = 0
-}
+				if (
+					(/[A-Za-z]/).test(letters[j])
+					&& (/-?\d+(\.\d*)?(e-?\d+)?$/).test(next)
+				) {
+					setArg(letters[j], next, arg);
+					broken = true;
+					break;
+				}
 
-function factor (n, out) {
-  n = (n - (out[0] = (n & 32767))) / 32768
-  n = (n - (out[1] = (n & 32767))) / 32768
-  out[3] = ((n - (out[2] = (n & 32767))) / 32768) & 32767
-}
+				if (letters[j + 1] && letters[j + 1].match(/\W/)) {
+					setArg(letters[j], arg.slice(j + 2), arg);
+					broken = true;
+					break;
+				} else {
+					setArg(letters[j], flags.strings[letters[j]] ? '' : true, arg);
+				}
+			}
+
+			key = arg.slice(-1)[0];
+			if (!broken && key !== '-') {
+				if (
+					args[i + 1]
+					&& !(/^(-|--)[^-]/).test(args[i + 1])
+					&& !flags.bools[key]
+					&& (aliases[key] ? !aliasIsBoolean(key) : true)
+				) {
+					setArg(key, args[i + 1], arg);
+					i += 1;
+				} else if (args[i + 1] && (/^(true|false)$/).test(args[i + 1])) {
+					setArg(key, args[i + 1] === 'true', arg);
+					i += 1;
+				} else {
+					setArg(key, flags.strings[key] ? '' : true, arg);
+				}
+			}
+		} else {
+			if (!flags.unknownFn || flags.unknownFn(arg) !== false) {
+				argv._.push(flags.strings._ || !isNumber(arg) ? arg : Number(arg));
+			}
+			if (opts.stopEarly) {
+				argv._.push.apply(argv._, args.slice(i + 1));
+				break;
+			}
+		}
+	}
+
+	Object.keys(defaults).forEach(function (k) {
+		if (!hasKey(argv, k.split('.'))) {
+			setKey(argv, k.split('.'), defaults[k]);
+
+			(aliases[k] || []).forEach(function (x) {
+				setKey(argv, x.split('.'), defaults[k]);
+			});
+		}
+	});
+
+	if (opts['--']) {
+		argv['--'] = notFlags.slice();
+	} else {
+		notFlags.forEach(function (k) {
+			argv._.push(k);
+		});
+	}
+
+	return argv;
+};
