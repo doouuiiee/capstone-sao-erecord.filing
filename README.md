@@ -1,57 +1,94 @@
-# balanced-match
+# brace-expansion
 
-Match balanced string pairs, like `{` and `}` or `<b>` and
-`</b>`. Supports regular expressions as well!
+[Brace expansion](https://www.gnu.org/software/bash/manual/html_node/Brace-Expansion.html),
+as known from sh/bash, in JavaScript.
+
+[![CI](https://github.com/juliangruber/brace-expansion/actions/workflows/ci.yml/badge.svg)](https://github.com/juliangruber/brace-expansion/actions/workflows/ci.yml)
+[![downloads](https://img.shields.io/npm/dm/brace-expansion.svg)](https://www.npmjs.org/package/brace-expansion)
 
 ## Example
 
-Get the first matching pair of braces:
-
 ```js
-import { balanced } from 'balanced-match'
+import { expand } from 'brace-expansion'
 
-console.log(balanced('{', '}', 'pre{in{nested}}post'))
-console.log(balanced('{', '}', 'pre{first}between{second}post'))
-console.log(
-  balanced(/\s+\{\s+/, /\s+\}\s+/, 'pre  {   in{nest}   }  post'),
-)
-```
+expand('file-{a,b,c}.jpg')
+// => ['file-a.jpg', 'file-b.jpg', 'file-c.jpg']
 
-The matches are:
+expand('-v{,,}')
+// => ['-v', '-v', '-v']
 
-```bash
-$ node example.js
-{ start: 3, end: 14, pre: 'pre', body: 'in{nested}', post: 'post' }
-{ start: 3,
-  end: 9,
-  pre: 'pre',
-  body: 'first',
-  post: 'between{second}post' }
-{ start: 3, end: 17, pre: 'pre', body: 'in{nest}', post: 'post' }
+expand('file{0..2}.jpg')
+// => ['file0.jpg', 'file1.jpg', 'file2.jpg']
+
+expand('file-{a..c}.jpg')
+// => ['file-a.jpg', 'file-b.jpg', 'file-c.jpg']
+
+expand('file{2..0}.jpg')
+// => ['file2.jpg', 'file1.jpg', 'file0.jpg']
+
+expand('file{0..4..2}.jpg')
+// => ['file0.jpg', 'file2.jpg', 'file4.jpg']
+
+expand('file-{a..e..2}.jpg')
+// => ['file-a.jpg', 'file-c.jpg', 'file-e.jpg']
+
+expand('file{00..10..5}.jpg')
+// => ['file00.jpg', 'file05.jpg', 'file10.jpg']
+
+expand('{{A..C},{a..c}}')
+// => ['A', 'B', 'C', 'a', 'b', 'c']
+
+expand('ppp{,config,oe{,conf}}')
+// => ['ppp', 'pppconfig', 'pppoe', 'pppoeconf']
 ```
 
 ## API
 
-### const m = balanced(a, b, str)
+```js
+import { expand } from 'brace-expansion'
+```
 
-For the first non-nested matching pair of `a` and `b` in `str`, return an
-object with those keys:
+### const expanded = expand(str, [options])
 
-- **start** the index of the first match of `a`
-- **end** the index of the matching `b`
-- **pre** the preamble, `a` and `b` not included
-- **body** the match, `a` and `b` not included
-- **post** the postscript, `a` and `b` not included
+Return an array of all possible and valid expansions of `str`. If
+none are found, `[str]` is returned.
 
-If there's no match, `undefined` will be returned.
+The `options` object can provide a `max` value to cap the number
+of expansions allowed. This is limited to `100_000` by default,
+to prevent DoS attacks.
 
-If the `str` contains more `a` than `b` / there are unmatched pairs, the first match that was closed will be used. For example, `{{a}` will match `['{', 'a', '']` and `{a}}` will match `['', 'a', '}']`.
+```js
+const expansions = expand('{1..100}'.repeat(5), {
+  max: 100,
+})
+// expansions.length will be 100, not 100^5
+```
 
-### const r = balanced.range(a, b, str)
+Valid expansions are:
 
-For the first non-nested matching pair of `a` and `b` in `str`, return an
-array with indexes: `[ <a index>, <b index> ]`.
+```js
+;/^(.*,)+(.+)?$/
+// {a,b,...}
+```
 
-If there's no match, `undefined` will be returned.
+A comma separated list of options, like `{a,b}` or `{a,{b,c}}` or `{,a,}`.
 
-If the `str` contains more `a` than `b` / there are unmatched pairs, the first match that was closed will be used. For example, `{{a}` will match `[ 1, 3 ]` and `{a}}` will match `[0, 2]`.
+```js
+;/^-?\d+\.\.-?\d+(\.\.-?\d+)?$/
+// {x..y[..incr]}
+```
+
+A numeric sequence from `x` to `y` inclusive, with optional increment.
+If `x` or `y` start with a leading `0`, all the numbers will be padded
+to have equal length. Negative numbers and backwards iteration work too.
+
+```js
+;/^-?\d+\.\.-?\d+(\.\.-?\d+)?$/
+// {x..y[..incr]}
+```
+
+An alphabetic sequence from `x` to `y` inclusive, with optional increment.
+`x` and `y` must be exactly one character, and if given, `incr` must be a
+number.
+
+For compatibility reasons, the string `${` is not eligible for brace expansion.
